@@ -3,11 +3,13 @@ import { back } from '../app/nav';
 import { saveCharacter, useStore } from '../app/store';
 import { classById, classes, rules, type Advancement, type DomainId, type TraitId } from '../data';
 import {
+  companionPicks, hasCompanion, trainingAllowed, type CompanionPick,
   achievementAt, advancementCapped, applyLevelUp, derive, extraCardsFor, legalCards, levelUpProblems, slotFor, STAGES, subclassOf, tierOf, TRAIT_IDS,
   type AdvancementChoice, type AdvancementMark, type Character, type LevelUpChoices,
 } from '../rules';
 import { themeAttrs } from '../ui/Header';
 import { cap, DomainIcon, Page, Recall, Rich, signed } from '../ui/kit';
+import { CompanionTraining } from '../ui/Companion';
 
 interface Pick {
   id: Advancement['id'];
@@ -46,6 +48,7 @@ export function LevelUp({ id }: { id: string }) {
   const [vitality, setVitality] = useState<('stress' | 'hitPoint' | 'thresholds')[]>([]);
   const [master, setMaster] = useState<number[]>([]);
   const [done, setDone] = useState<Character | null>(null);
+  const [train, setTrain] = useState<CompanionPick[]>([]);
   if (!ch) return null;
 
   const level = ch.level + 1;
@@ -60,7 +63,13 @@ export function LevelUp({ id }: { id: string }) {
     extraCards: extra,
     picks: { ...(vitality.length ? { vitality } : {}), ...(master.length ? { masterOfTheCraft: { experiences: master } } : {}) },
   };
-  const problems = level > 10 ? ['Already at level 10.'] : levelUpProblems(ch, choices);
+  // Companion training: picks this level-up must make (an upgraded subclass card here can add Expert or Advanced Training).
+  const stageAfter = picks.some((p) => p.id === 'subclass') ? STAGES[Math.min(2, STAGES.indexOf(ch.subclassStage) + 1)] : ch.subclassStage;
+  const trainNeed = ch.companion && hasCompanion(ch) ? Math.max(0, trainingAllowed(ch, level, stageAfter) - companionPicks(ch.companion).length) : 0;
+  const problems = level > 10 ? ['Already at level 10.'] : [
+    ...levelUpProblems(ch, choices),
+    ...(train.length < trainNeed ? [`Choose ${trainNeed - train.length} more companion training option${trainNeed - train.length > 1 ? 's' : ''}.`] : []),
+  ];
   const marks: AdvancementMark[] = [...ch.advancements, ...picks.map((p) => ({ level, tier: (slotFor(ch.advancements, level, p.id) ?? 2) as 2 | 3 | 4, choice: toChoice(p) }))];
   const expNames = [...ch.experiences.map((e) => e.name), ...(ach ? [exp || 'New Experience'] : [])];
   const expVals = [...d.experiences.map((e) => e.value), ...(ach ? [2] : [])];
@@ -201,9 +210,17 @@ export function LevelUp({ id }: { id: string }) {
           </section>
         )}
 
+        {trainNeed > 0 && <CompanionTraining ch={ch} need={trainNeed} value={train} onChange={setTrain} />}
+        {hasCompanion(ch) && !ch.companion && <p className="s-muted" style={{ fontSize: 14 }}>Create your companion on the Subclass tab to give it training here.</p>}
+
         {problems.length > 0 && <p className="callout" role="status">{problems[0]}</p>}
         <button className="s-btn solid s-press" style={{ minHeight: 52 }} disabled={problems.length > 0}
-          onClick={() => { const next = applyLevelUp(ch, choices); saveCharacter(next); setDone(next); }}>
+          onClick={() => {
+            let next = applyLevelUp(ch, choices);
+            if (next.companion && train.length) next = { ...next, companion: { ...next.companion, picks: [...companionPicks(next.companion), ...train.slice(0, trainNeed)] } };
+            saveCharacter(next);
+            setDone(next);
+          }}>
           Level up to {level}
         </button>
       </Page>
@@ -286,49 +303,52 @@ function PickDetail({ p, ch, level, expNames, expVals, taken, sim, onChange }: {
 function CardList({ ch, level, value, exclude, onPick }: { ch: Character; level: number; value: string; exclude: string[]; onPick: (id: string) => void }) {
   const [open, setOpen] = useState('');
   const cards = useMemo(() => legalCards(ch, level, exclude), [ch, level, exclude.join()]);
-  const levels = [...new Set(cards.map((c) => c.level))].sort((a, b) => b - a);
+  const levels = [...new Set(cards.map((c) => c.level))].sort((a, b) => a - b);
+  const chosenLevel = cards.find((c) => c.id === value)?.level;
+  const [tab, setTab] = useState<number>(chosenLevel ?? levels[levels.length - 1] ?? 1);
+  const shown = levels.includes(tab) ? tab : levels[levels.length - 1];
+  const atLevel = cards.filter((c) => c.level === shown);
+  const doms = [...new Set(atLevel.map((c) => c.domain))];
   return (
     <div className="card-list">
-      {levels.map((lvl, li) => {
-        const atLevel = cards.filter((c) => c.level === lvl);
-        const doms = [...new Set(atLevel.map((c) => c.domain))];
-        return (
-          <Fragment key={lvl}>
-            {li > 0 && <hr className="sep" />}
-            <h3 className="s-title" style={{ margin: '4px 0' }}><i /><span>Level {lvl}</span><i /></h3>
-            {doms.map((dm, di) => (
-              <Fragment key={dm}>
-                {di > 0 && <hr className="sep" style={{ width: '60%' }} />}
-                <span className="s-label domain-head" style={{ fontSize: 14 }}><DomainIcon domain={dm} size={20} /> {cap(dm)}</span>
-                {atLevel.filter((c) => c.domain === dm).map((c) => {
-                  const sel = value === c.id;
-                  const isOpen = open === c.id || sel;
-                  return (
-                    <div key={c.id} className={`card-pick ${sel ? 'sel' : ''}`}>
-                      <button className="s-row s-press" aria-expanded={isOpen} onClick={() => setOpen(open === c.id ? '' : c.id)}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
-                          <DomainIcon domain={c.domain} />
-                          <span style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span className="s-feat-name" style={{ fontSize: 17 }}>{c.name}</span>
-                            <span className="s-muted" style={{ fontSize: 13 }}>{cap(c.domain)} · Level {c.level} {cap(c.type)}</span>
-                          </span>
-                        </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{sel && <span className="chosen">Chosen</span>}<Recall cost={c.recallCost} /></span>
-                      </button>
-                      {isOpen && (
-                        <div className="stack-10" style={{ padding: '0 12px 12px' }}>
-                          <Rich text={c.text} style={{ fontSize: 14 }} />
-                          <button className={`s-mini ${sel ? '' : 'solid'}`} style={{ alignSelf: 'flex-start' }} onClick={() => onPick(sel ? '' : c.id)}>{sel ? 'Remove' : 'Choose'}</button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </Fragment>
-            ))}
-          </Fragment>
-        );
-      })}
+      {/* One level at a time: tabs instead of a long list. */}
+      <div className="s-pills" role="tablist" aria-label="Card level" style={{ flexWrap: 'wrap' }}>
+        {levels.map((lvl) => (
+          <button key={lvl} role="tab" aria-selected={shown === lvl} className={`s-pill ${shown === lvl ? 'on' : ''}`} style={{ minWidth: 40 }}
+            onClick={() => setTab(lvl)}>{lvl}{chosenLevel === lvl ? ' ✓' : ''}</button>
+        ))}
+      </div>
+      {doms.map((dm, di) => (
+        <Fragment key={dm}>
+          {di > 0 && <hr className="sep" style={{ width: '60%' }} />}
+          <span className="s-label domain-head" style={{ fontSize: 14 }}><DomainIcon domain={dm} size={20} /> {cap(dm)}</span>
+          {atLevel.filter((c) => c.domain === dm).map((c) => {
+            const sel = value === c.id;
+            const isOpen = open === c.id || sel;
+            return (
+              <div key={c.id} className={`card-pick ${sel ? 'sel' : ''}`}>
+                <button className="s-row s-press" aria-expanded={isOpen} onClick={() => setOpen(open === c.id ? '' : c.id)}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
+                    <DomainIcon domain={c.domain} />
+                    <span style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span className="s-feat-name" style={{ fontSize: 17 }}>{c.name}</span>
+                      <span className="s-muted" style={{ fontSize: 13 }}>{cap(c.domain)} · Level {c.level} {cap(c.type)}</span>
+                    </span>
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{sel && <span className="chosen">Chosen</span>}<Recall cost={c.recallCost} /></span>
+                </button>
+                {isOpen && (
+                  <div className="stack-10" style={{ padding: '0 12px 12px' }}>
+                    <Rich text={c.text} style={{ fontSize: 14 }} />
+                    <button className={`s-mini ${sel ? '' : 'solid'}`} style={{ alignSelf: 'flex-start' }} onClick={() => onPick(sel ? '' : c.id)}>{sel ? 'Remove' : 'Choose'}</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </Fragment>
+      ))}
     </div>
   );
 }
+

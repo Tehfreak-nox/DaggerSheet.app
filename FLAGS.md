@@ -61,8 +61,8 @@ sweeps every class, subclass and transformation from level 1 to 10 with everythi
 
 **Calls made (say if you want them different):**
 - **Known martial stances:** two at the foundation plus one per level after 1 (multiclassing into Martial Artist later gives the same count).
-- **Companion Stress slots:** 3 (+1 Resilient). The SRD text doesn't print the number; it's on the companion sheet.
-- **Companion "Intelligent"** adds +1 to the first Companion Experience; **Honing Relic** adds +1 to your first Experience. Both say "of your choice".
+- **Companion** follows the Ranger Companion sheet: 3 Stress (3 more with Resilient), and the boxes for how often each training option can be taken.
+- **Honing Relic** adds +1 to your first Experience. Both say "of your choice".
 - **Gems, Greatstone, Bloodstone** go on your primary weapon (the stones only if it has no feature). Only the first gem and the first relic count.
 - **Combo Die** size is picked on the Combo Strike card, one step per tier (d4 → d6 at tier 2, and so on). The SRD makes it a level-up option; the level-up screen doesn't offer it yet.
 - **Contacts Everywhere "+3 to your Hope or Fear Die"** is applied to the Hope Die.

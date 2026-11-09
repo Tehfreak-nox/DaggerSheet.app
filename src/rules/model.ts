@@ -77,13 +77,29 @@ export interface PermanentPicks {
   shapeshifter?: string;
 }
 
-/** A Beastbound Ranger's animal companion (SRD "Ranger Companion"). */
+/** One training option marked when the character levelled up. */
+export interface CompanionPick {
+  option: string;
+  level: number;
+  /** Intelligent: the Companion Experience it raises (index). */
+  experience?: number;
+  /** Vicious: a bigger damage die or a longer range. */
+  vicious?: 'damage' | 'range';
+}
+
+/** A Beastbound Ranger's animal companion (SRD "Ranger Companion" sheet). */
 export interface Companion {
   name: string;
+  /** What kind of animal (bear, hawk…). */
+  species?: string;
+  /** Name of its standard attack (Bite, Talons…). */
+  attack?: string;
   /** Companion Experiences (+2 each; one more each time you gain an Experience). */
   experiences: string[];
-  /** Level-up options marked on the companion sheet (ids). */
-  options: string[];
+  /** Training options marked at level-ups. */
+  picks?: CompanionPick[];
+  /** Older saves: training option ids. */
+  options?: string[];
   damageType: 'physical' | 'magic';
   stress: number;
 }

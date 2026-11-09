@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { ancestries, classes, communities, loot, lootById, transformations } from '../data';
 import {
-  ACTIVE, ITEM_USE, activeCtx, applyLevelUp, attackProfile, damageRoll, moveLimit, controlsFor, createCharacter, creationProblems, customControls, derive, endScene,
+  ACTIVE, ITEM_USE, companionStats, newCompanion, trainingAllowed, type CompanionPick, activeCtx, applyLevelUp, attackProfile, damageRoll, moveLimit, controlsFor, createCharacter, creationProblems, customControls, derive, endScene,
   inEffect, isActive, newSession, rest, seededRng, setActive, starving, type Character, type Control, type Rng,
 } from './index';
 import { guideInput, pick, randomLevelUp } from './simulate';
@@ -157,6 +157,41 @@ describe('transformations', () => {
     const ctx = activeCtx(w, 'tf:wolf-form');
     expect(ACTIVE['tf:wolf-form'].attackDice!(ctx)).toEqual([{ count: 1, sides: 10 }]);
     expect(isActive(rest(w, 'short', []).character, 'tf:wolf-form')).toBe(false);
+  });
+});
+
+describe('Beastbound companion', () => {
+  it('starts at Evasion 10, 3 Stress, d6 Melee, two Experiences at +2', () => {
+    const r = { ...make('ranger', 'beastbound'), companion: newCompanion() };
+    const st = companionStats(r);
+    expect([st.evasion, st.stressSlots, st.damageDie, st.range, st.experiences.map((e) => e.value)]).toEqual([10, 3, 6, 'Melee', [2, 2]]);
+    expect(st.allowed).toBe(0);
+  });
+
+  it('training: Aware ×2, Resilient, Vicious die and range, Intelligent on a chosen Experience', () => {
+    const r = make('ranger', 'beastbound', { level: 6 });
+    const picks: CompanionPick[] = [
+      { option: 'aware', level: 2 }, { option: 'aware', level: 3 }, { option: 'resilient', level: 4 },
+      { option: 'vicious', level: 5, vicious: 'damage' }, { option: 'vicious', level: 6, vicious: 'range' }, { option: 'intelligent', level: 6, experience: 1 },
+    ];
+    const st = companionStats({ ...r, companion: { ...newCompanion(), picks } });
+    expect([st.evasion, st.stressSlots, st.damageDie, st.range]).toEqual([14, 4, 8, 'Very Close']);
+    expect(st.experiences[1].value).toBe(3);
+    expect(st.experiences[0].value).toBe(2);
+  });
+
+  it('one pick a level after 1; Expert Training +1, Advanced Training +2; Light in the Dark adds a Hope slot', () => {
+    const r = make('ranger', 'beastbound', { level: 5 });
+    expect(trainingAllowed(r, 5, 'foundation')).toBe(4);
+    expect(trainingAllowed(r, 5, 'specialization')).toBe(5);
+    expect(trainingAllowed(r, 8, 'mastery')).toBe(10);
+    const light = { ...r, companion: { ...newCompanion(), picks: [{ option: 'light-in-the-dark', level: 2 }] } };
+    expect(derive(light).hopeSlots).toBe(derive(r).hopeSlots + 1);
+  });
+
+  it('downtime moves that clear your Stress clear the companion’s too', () => {
+    const r = { ...make('ranger', 'beastbound'), stress: 0, companion: { ...newCompanion(), stress: 3 } };
+    expect(rest(r, 'long', [{ id: 'clear-all-stress' }]).character.companion!.stress).toBe(0);
   });
 });
 

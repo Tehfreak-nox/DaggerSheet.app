@@ -5,7 +5,7 @@ import { updateCharacter } from '../app/store';
 import { go } from '../app/nav';
 import { ancestries, cardById, classById, communityById, rules, type TraitId } from '../data';
 import {
-  ACTIVE, activeForm, ancestryFeatures, transformationOf, workingAncestryFeatures, avoidDeath, blazeOfGlory, derive, dropOut, hasBeastform, multiclassSubclass,
+  ACTIVE, activeForm, ancestryFeatures, hasCompanion, transformationOf, workingAncestryFeatures, avoidDeath, blazeOfGlory, derive, dropOut, hasBeastform, multiclassSubclass,
   mustMakeDeathMove, riskItAll, setHitPoints, splitClear, STAGES, subclassOf, TRAIT_IDS, wake,
   type Character,
 } from '../rules';
@@ -217,6 +217,7 @@ function FeaturesPanel({ ch }: { ch: Character }) {
             )}
             {tab === 'subclass' && (
               <>
+                {hasCompanion(ch) && <CompanionPanel ch={ch} />}
                 <span className="s-label panel-head">{sub.name}{sub.spellcastTrait ? ` · Spellcast: ${cap(sub.spellcastTrait)}` : ''}</span>
                 {STAGES.filter((_, si) => si <= stageIdx).flatMap((stage) => sub[stage].map((f) => (
                   <FeatureCard key={stage + f.id} ch={ch} featureKey={`sub:${f.id}`} name={f.name} text={f.text} tag={cap(stage)} />
@@ -314,19 +315,6 @@ function ClassExtras({ ch }: { ch: Character }) {
             );
           })}
         </Expander>
-      </>
-    );
-  }
-  if (ex.companion && ch.subclassId === 'beastbound') {
-    return (
-      <>
-      <span className="s-label panel-head">Companion</span>
-      <CompanionPanel ch={ch} />
-      <Expander title="Companion rules" open={open} onToggle={() => setOpen(!open)}>
-        {[...ex.companion.steps, ...ex.companion.rules].map((s) => (
-          <FeatureCard key={s.title} ch={ch} featureKey={`comp:${s.title}`} name={s.title || 'Companion'} text={s.text} />
-        ))}
-      </Expander>
       </>
     );
   }

@@ -371,7 +371,7 @@ export function derive(ch: Character): Derived {
     hitPoints,
     stressSlots,
     // Companion "Light in the Dark": an additional Hope slot.
-    hopeSlots: Math.max(0, rules.caps.hope - (ch.scars ?? 0) + (ch.companion?.options.includes('light-in-the-dark') && hasFeature(ch, 'companion') ? 1 : 0)),
+    hopeSlots: Math.max(0, rules.caps.hope - (ch.scars ?? 0) + (hasFeature(ch, 'companion') && [...(ch.companion?.picks ?? []).map((p) => p.option), ...(ch.companion?.options ?? [])].includes('light-in-the-dark') ? 1 : 0)),
     proficiency: Math.max(1, Math.min(rules.caps.proficiency, proficiency + sum('proficiency'))),
     spellcastTraits: spellTraits,
     spellcast,
