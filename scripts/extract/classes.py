@@ -327,7 +327,9 @@ def parse_companion(lines: list[Line]) -> dict:
         if head == 'Example Companion Experiences':
             examples = [e.strip() for e in plain(join(body)).split(',')]
         elif head.startswith('LEVELING UP YOUR COMPANION'):
-            intro = [l for l in body if not l.text.startswith('•')]
+            # The intro is everything before the first bullet; wrapped bullet lines belong to their option.
+            first = next((i for i, l in enumerate(body) if l.text.startswith('•')), len(body))
+            intro = body[:first]
             levelUp = split_features([Line(l.page, l.col, l.x0, l.top, l.style, re.sub(r'^• ', '', l.text)) for l in body
                                       if l not in intro or FEATURE_START.match(re.sub(r'^• ', '', l.text))])
             levelUp = [f for f in levelUp if f['name']]

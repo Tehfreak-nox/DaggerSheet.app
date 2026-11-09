@@ -6,7 +6,9 @@ import {
 } from '../data';
 import { equipmentModifiers, type Modifier, type Stat } from './effects';
 import { activeForm } from './forms';
-import { ACTIVE } from './active';
+import { ACTIVE, type ActiveCtx } from './active';
+import { honingRelicExperience, itemModifiers } from './items';
+import { transformationFeatureName, transformationModifiers } from './transformation';
 import { TRAIT_IDS, type Character, type SubclassStage } from './model';
 
 export const STAGES: SubclassStage[] = ['foundation', 'specialization', 'mastery'];
@@ -43,6 +45,16 @@ export function ancestryFeatures(ch: Character): [Feature, Feature] {
   const second = ancestryById.get(ch.ancestry.mixed.second);
   if (!first || !second) throw new Error('Unknown mixed ancestry');
   return [first.features[0], second.features[1]];
+}
+
+/**
+ * The ancestry features that work: both, or only the one chosen for a Shapeshifter
+ * ("Only Skin Deep: You gain the benefit of only one of your chosen ancestry's features").
+ */
+export function workingAncestryFeatures(ch: Character): Feature[] {
+  const both = ancestryFeatures(ch);
+  if (ch.transformation !== 'shapeshifter') return both;
+  return [both.find((f) => f.id === ch.picks.shapeshifter) ?? both[0]];
 }
 
 /** Subclass features you have, in order, with their stage. */
@@ -112,6 +124,8 @@ export interface Derived {
   /** Situational modifiers (e.g. Paired) the attack UI shows as toggles. */
   conditional: Modifier[];
   attackBonus: number;
+  /** Added to every action and reaction roll. */
+  actionBonus: number;
   spellcastBonus: number;
   modifiers: Modifier[];
   /** Brawler with no other active weapons uses Brawler’s Strike. */
@@ -138,6 +152,8 @@ export function experienceValues(ch: Character): number[] {
   const vals = ch.experiences.map(() => base);
   for (const a of ch.advancements) if (a.choice.id === 'experiences') for (const i of a.choice.experiences) vals[i] += 1;
   if (ch.purposefulDesign !== undefined && hasAncestryFeature(ch, 'purposeful-design')) vals[ch.purposefulDesign] += 1;
+  const honing = honingRelicExperience(ch);
+  if (honing !== null) vals[honing] += 1;
   const mc = ch.picks.masterOfTheCraft;
   if (mc && ownedCards(ch).some((c) => c.id === 'grace-master-of-the-craft')) {
     const bonus = mc.experiences.length === 1 ? 3 : 2;
@@ -146,8 +162,41 @@ export function experienceValues(ch: Character): number[] {
   return vals;
 }
 
+/** A class or subclass feature you have, by id (multiclass included). */
+export function hasFeature(ch: Character, featureId: string): boolean {
+  const cls = classOf(ch);
+  if (cls.features.some((f) => f.id === featureId) || cls.hopeFeature.id === featureId) return true;
+  if (ch.multiclass && classById.get(ch.multiclass.classId)?.features.some((f) => f.id === featureId)) return true;
+  return subclassFeatures(ch).some((x) => x.feature.id === featureId);
+}
+
+/** What an effect's numbers are worked out from. */
+export function activeCtx(ch: Character, key: string, traits: Record<TraitId, number> = baseTraits(ch)): ActiveCtx {
+  const sp = spellcastTraits(ch);
+  return {
+    traits,
+    spellcast: sp.length ? Math.max(...sp.map((x) => traits[x])) : null,
+    proficiency: Math.min(rules.caps.proficiency, proficiencyOf(ch)),
+    tier: tierOf(ch.level),
+    level: ch.level,
+    opts: ch.activeOpts?.[key] ?? [],
+    has: (id) => hasFeature(ch, id),
+  };
+}
+
+/** The name shown for a lasting effect's modifiers. */
+export function activeName(ch: Character, key: string): string {
+  const [kind, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
+  if (kind === 'card') return cardById.get(id)?.name ?? id;
+  if (kind === 'hope') return classOf(ch).hopeFeature.name;
+  if (kind === 'stance') return `${id.charAt(0).toUpperCase() + id.slice(1)} stance`;
+  if (kind === 'tf') return transformationFeatureName(id);
+  const f = subclassFeatures(ch).find((x) => x.feature.id === id)?.feature ?? classOf(ch).features.find((x) => x.id === id);
+  return f?.name ?? id;
+}
+
 export function hasAncestryFeature(ch: Character, featureId: string): boolean {
-  return ancestryFeatures(ch).some((f) => f.id === featureId);
+  return workingAncestryFeatures(ch).some((f) => f.id === featureId);
 }
 
 /** Effects from ancestry, subclass and class features, keyed by feature id. */
@@ -226,7 +275,7 @@ export function derive(ch: Character): Derived {
   const ctx: Ctx = { ch, proficiency, traits: sumTraits(mods), armored: !!armor };
 
   // Ancestry and subclass features
-  const feats: Feature[] = [...ancestryFeatures(ch), ...subclassFeatures(ch).map((x) => x.feature)];
+  const feats: Feature[] = [...workingAncestryFeatures(ch), ...subclassFeatures(ch).map((x) => x.feature)];
   for (const f of feats) {
     const fx = FEATURE_EFFECTS[f.id];
     if (fx) mods.push(...fx(ctx).map((m) => ({ ...m, source: f.name })));
@@ -266,11 +315,21 @@ export function derive(ch: Character): Derived {
   for (const key of ch.active ?? []) {
     const def = ACTIVE[key];
     if (!def) continue;
-    const t = sumTraits(mods);
-    const sp = spellcastTraits(ch);
-    const spellNow = sp.length ? Math.max(...sp.map((x) => t[x])) : null;
-    mods.push(...def.effects({ traits: t, spellcast: spellNow }).map((m) => ({ ...m, source: key.startsWith('card:') ? cardById.get(key.slice(5))?.name ?? key : `${cls.hopeFeature.name}` })));
+    mods.push(...def.effects(activeCtx(ch, key, sumTraits(mods))).map((m) => ({ ...m, source: activeName(ch, key) })));
   }
+
+  // Features that work on their own once their condition holds.
+  const has = (id: string) => hasFeature(ch, id);
+  // Conjure Shield: "While you have at least 2 Hope, you add your Proficiency to your Evasion."
+  if (has('conjure-shield') && ch.hope >= 2) mods.push({ stat: 'evasion', value: proficiency, source: 'Conjure Shield' });
+  // Lunar Phases: the die on the card picks the effect until the end of the session.
+  const phase = ch.uses['session:phase:sub:lunar-phases'];
+  if (has('lunar-phases') && phase) {
+    if (phase === 2 || phase === 3) mods.push({ stat: 'damage', value: 2, source: 'Waxing Moon' });
+    if (phase === 4) mods.push({ stat: 'major', value: 3, source: 'Full Moon' }, { stat: 'severe', value: 3, source: 'Full Moon' });
+    if (phase >= 5) mods.push({ stat: 'evasion', value: 1, source: 'Waning Moon' });
+  }
+  mods.push(...transformationModifiers(ch), ...itemModifiers(ch));
 
   // Brawler: Brawler’s Strike while no other active weapons, +1 Evasion.
   const brawlersStrike = cls.id === 'brawler' && weapons.length === 0;
@@ -298,7 +357,7 @@ export function derive(ch: Character): Derived {
     major: baseMajor + ch.level + sum('major'),
     severe: baseSevere + ch.level + sum('severe'),
   };
-  const hitPoints = Math.min(rules.caps.hitPointSlots, cls.startingHitPoints + count(ch, 'hitPoint') + sum('hitPoints'));
+  const hitPoints = Math.max(1, Math.min(rules.caps.hitPointSlots, cls.startingHitPoints + count(ch, 'hitPoint') + sum('hitPoints')));
   const stressSlots = Math.min(rules.caps.stressSlots, rules.creation.stress + count(ch, 'stress') + sum('stress'));
   const exp = experienceValues(ch);
 
@@ -311,13 +370,15 @@ export function derive(ch: Character): Derived {
     thresholds,
     hitPoints,
     stressSlots,
-    hopeSlots: Math.max(0, rules.caps.hope - (ch.scars ?? 0)),
-    proficiency,
+    // Companion "Light in the Dark": an additional Hope slot.
+    hopeSlots: Math.max(0, rules.caps.hope - (ch.scars ?? 0) + (ch.companion?.options.includes('light-in-the-dark') && hasFeature(ch, 'companion') ? 1 : 0)),
+    proficiency: Math.max(1, Math.min(rules.caps.proficiency, proficiency + sum('proficiency'))),
     spellcastTraits: spellTraits,
     spellcast,
     experiences: ch.experiences.map((e, i) => ({ name: e.name, value: exp[i] })),
     conditional: mods.filter((m) => m.condition),
     attackBonus: sum('attack'),
+    actionBonus: sum('action'),
     spellcastBonus: sum('spellcast'),
     modifiers: mods,
     brawlersStrike,

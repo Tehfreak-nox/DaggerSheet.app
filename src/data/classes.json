@@ -1617,27 +1617,27 @@
           {
             "id": "intelligent",
             "name": "Intelligent",
-            "text": "Your companion gains a permanent +1 bonus"
+            "text": "Your companion gains a permanent +1 bonus to a Companion Experience of your choice."
           },
           {
             "id": "light-in-the-dark",
             "name": "Light in the Dark",
-            "text": "Use this as an additional Hope slot your"
+            "text": "Use this as an additional Hope slot your character can mark."
           },
           {
             "id": "creature-comfort",
             "name": "Creature Comfort",
-            "text": "Once per rest, when you take time"
+            "text": "Once per rest, when you take time during a quiet moment to give your companion love and attention, you can gain a Hope or you can both clear a Stress."
           },
           {
             "id": "armored",
             "name": "Armored",
-            "text": "When your companion takes damage, you can"
+            "text": "When your companion takes damage, you can **mark one of your Armor Slots** instead of marking one of their Stress."
           },
           {
             "id": "vicious",
             "name": "Vicious",
-            "text": "Increase your companion’s damage dice or range"
+            "text": "Increase your companion’s damage dice or range by one step (d6 to d8, Close to Far, etc.)."
           },
           {
             "id": "resilient",
@@ -1647,12 +1647,12 @@
           {
             "id": "bonded",
             "name": "Bonded",
-            "text": "When you mark your last Hit Point, your"
+            "text": "When you mark your last Hit Point, your companion rushes to your side to comfort you. Roll a number of **d6s** equal to the unmarked Stress slots they have and mark them. If any roll a 6, your companion helps you up. Clear your last Hit Point and return to the scene."
           },
           {
             "id": "aware",
             "name": "Aware",
-            "text": "Your companion gains a permanent +2 bonus to"
+            "text": "Your companion gains a permanent +2 bonus to their Evasion."
           }
         ]
       }
@@ -1684,7 +1684,7 @@
       {
         "id": "sneak-attack",
         "name": "Sneak Attack",
-        "text": "When you succeed on an attack while _Cloaked_ or while an ally is within Melee range of your target, add a number of **d6s** equal to your tier to your damage roll.\n• Level 1  Tier 1\n• Levels 2–4  Tier 2\n• Levels 5–7  Tier 3\n• Levels 8–10  Tier 4"
+        "text": "When you succeed on an attack while _Cloaked_ or while an ally is within Melee range of your target, add a number of **d6s** equal to your tier to your damage roll.\n• Level 1 → Tier 1\n• Levels 2–4 → Tier 2\n• Levels 5–7 → Tier 3\n• Levels 8–10 → Tier 4"
       }
     ],
     "subclasses": [

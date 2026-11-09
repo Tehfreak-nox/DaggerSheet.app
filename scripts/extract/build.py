@@ -68,6 +68,7 @@ def main() -> None:
     write('communities.json', heritage.communities(lines))
     write('transformations.json', heritage.transformations(lines))
     weapons, armor, loot = equipment.parse(SRC, DEBUG)
+    equipment.fix_loot_from_lines(loot, lines)
     write('weapons.json', weapons)
     write('armor.json', armor)
     write('loot.json', loot)

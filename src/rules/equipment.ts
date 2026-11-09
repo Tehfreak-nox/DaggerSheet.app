@@ -1,4 +1,5 @@
 // Equip rules and attack profiles.
+import { bloodstone, gemTrait, greatstone } from './items';
 import { armorById, weaponById, type RangeId, type TraitId, type Weapon } from '../data';
 import { derive, spellcastTraits, tierOf } from './derive';
 import { versatileStats, type Modifier } from './effects';
@@ -59,6 +60,8 @@ export interface AttackProfile {
   feature: Weapon['feature'];
   /** Massive / Powerful: roll an extra die and drop the lowest. */
   extraDieDropLowest: boolean;
+  /** Brutal: a maximum damage die rolls another die. */
+  brutal?: boolean;
 }
 
 export function attackProfile(ch: Character, slot: 'primary' | 'secondary'): AttackProfile | null {
@@ -80,6 +83,9 @@ export function attackProfile(ch: Character, slot: 'primary' | 'secondary'): Att
   if (trait === 'spellcast') {
     trait = d.spellcastTraits.slice().sort((a, b) => d.traits[b] - d.traits[a])[0];
   }
+  // A gem attached to your primary weapon (Gem of Might: attack with Strength).
+  const gem = slot === 'primary' ? gemTrait(ch) : null;
+  if (gem) trait = gem;
   const die = alt?.damage.die ?? w.damage.die;
   let bonus = alt?.damage.bonus ?? w.damage.bonus;
   const attackModifiers: { label: string; value: number }[] = [];
@@ -107,6 +113,9 @@ export function attackProfile(ch: Character, slot: 'primary' | 'secondary'): Att
     damageType: w.damage.type,
     conditional,
     feature: w.feature,
-    extraDieDropLowest: ['Massive', 'Powerful'].includes(w.feature?.name ?? ''),
+    // Greatstone gives a featureless primary weapon "Powerful".
+    extraDieDropLowest: ['Massive', 'Powerful'].includes(w.feature?.name ?? '') || (slot === 'primary' && !w.feature && greatstone(ch)),
+    // Bloodstone gives a featureless primary weapon "Brutal".
+    brutal: w.feature?.name === 'Brutal' || (slot === 'primary' && !w.feature && !greatstone(ch) && bloodstone(ch)),
   };
 }

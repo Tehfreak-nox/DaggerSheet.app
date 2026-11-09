@@ -1,3 +1,4 @@
+import { TransformationPicker } from './screens/Transformation';
 import { useEffect } from 'react';
 import { back, useScreen } from './app/nav';
 import { connectAccount, useStore } from './app/store';
@@ -29,6 +30,7 @@ export function App() {
     case 'rest': view = <Rest id={s.id} kind={s.kind} />; break;
     case 'levelup': view = <LevelUp id={s.id} />; break;
     case 'beastform': view = <BeastformPicker id={s.id} via={s.via} />; break;
+    case 'transformation': view = <TransformationPicker id={s.id} />; break;
     default: view = <button onClick={back}>Back</button>;
   }
   return (

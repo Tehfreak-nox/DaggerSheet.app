@@ -155,3 +155,25 @@ def parse(sources: str, out_dir: str) -> tuple[list, list, list]:
     path = equipment_pdf(sources, out_dir)
     tables = list(raw_tables(path, 55))
     return weapons(tables), armor(tables), loot(tables)
+
+
+# Text from the Gold sidebar that the table reader can pick up when the sidebar
+# shares the page with the loot table (SRD p. 84, consumables 52-55).
+SIDEBAR = re.compile(r'Gold is an abstract|Optional Rule: Gold Coins|handfuls, bags, and chests|more than 1 chest|9 handfuls')
+
+
+def fix_loot_from_lines(loot_items: list[dict], lines) -> None:
+    """Rebuild a description from the SRD text lines when the table cell picked up sidebar text."""
+    for item in loot_items:
+        if not SIDEBAR.search(item['text']):
+            continue
+        start = next(i for i, ln in enumerate(lines) if re.match(rf"{item['roll']} \*\*", ln.text)
+                     and plain(ln.text.split('**')[1]).split()[0] == item['name'].split()[0])
+        first = lines[start]
+        words = [first.text.split('**', 2)[2].strip()]
+        for ln in lines[start + 1:]:
+            if ln.page != first.page or ln.col != first.col or re.match(r'\d+ \*\*', ln.text):
+                break
+            words.append(re.sub(r'^\*\*[^*]+\*\*\s*', '', ln.text).strip())
+        item['text'] = plain(' '.join(w for w in words if w))
+        assert not SIDEBAR.search(item['text']), item

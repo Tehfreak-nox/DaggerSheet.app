@@ -893,7 +893,7 @@
     "kind": "consumable",
     "roll": 52,
     "set": "additional",
-    "text": "When you release this spellcaster’s Gold is an abstract measurement of how much wealth a trapped soul, you can cast one spell character has, and is measured in handfuls, bags, and chests, from a card in your vault as if it were with 10 handfuls to 1 bag, and 10 bags to 1 chest. When you in your loadout. This doesn’t work for have marked all of the slots in a category and you gain another permanently vaulted cards. gold reward in that category, mark a slot in the following"
+    "text": "When you release this spellcaster’s trapped soul, you can cast one spell from a card in your vault as if it were in your loadout. This doesn’t work for permanently vaulted cards."
   },
   {
     "id": "quintessential-severant",
@@ -901,7 +901,7 @@
     "kind": "consumable",
     "roll": 53,
     "set": "additional",
-    "text": "You can use this magic blade to cut category and clear all the slots in the current one. one magical or metaphysical bond, such as an enchantment, contract, For example, if you have 9 handfuls and gain another, you magical tether, or divine oath. When instead mark 1 bag and erase all handfuls. If you have 9 bags you do, the blade shatters. and gain another, you mark 1 chest and erase all bags."
+    "text": "You can use this magic blade to cut one magical or metaphysical bond, such as an enchantment, contract, magical tether, or divine oath. When you do, the blade shatters."
   },
   {
     "id": "mask-of-the-echoed-self",
@@ -909,7 +909,7 @@
     "kind": "consumable",
     "roll": 54,
     "set": "additional",
-    "text": "You can wear this mask during your You can’t have more than 1 chest, so if all your Gold slots are next level up to swap the values of any marked, you’ll need to spend some of your gold or store it of your traits. When you do, the mask somewhere else before you can acquire more. becomes your permanent face."
+    "text": "You can wear this mask during your next level up to swap the values of any of your traits. When you do, the mask becomes your permanent face."
   },
   {
     "id": "necroprancers-bell",
@@ -917,7 +917,7 @@
     "kind": "consumable",
     "roll": 55,
     "set": "additional",
-    "text": "You can break this rusted, clapperless bell against the ground to summon a Optional Rule: Gold Coins skeletal steed that climbs out of the If your group wants to track gold with more granularity, earth and serves you until the next you can add coins as your lowest denomination. Following sunrise. the established pattern, 10 coins equal 1 handful."
+    "text": "You can break this rusted, clapperless bell against the ground to summon a skeletal steed that climbs out of the earth and serves you until the next sunrise."
   },
   {
     "id": "drakemantle",

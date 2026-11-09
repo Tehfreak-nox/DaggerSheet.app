@@ -51,9 +51,28 @@ Every card and feature text is read by `src/rules/mechanics.ts` with one set of 
 - **Need the GM's Fear count:** Avatar of Terror (+1d6 damage per Fear; the app only takes its Hope before each action roll), Dread-Touched (bonus = Fear), Umbral Veil (tokens = Fear, counted by hand), Night Terror (d6s = stolen Fear, amount picker).
 - **Offered on every result; tap only when it applies:** Glancing Blow (on a missed attack), Endless Charisma and Heart of a Poet (rolls to persuade), Nemesis swap (against your Prioritized target), Fearless / Freeborne / Stealth Expertise (rolls with Fear).
 - **Reminder only:** Champion's Edge "target marks an additional Hit Point"; Splintering Strike and Deathrun damage split between targets.
-- **Not tracked:** Words of Discord (−5 when recast on the same target), Copycat (Hope = half the copied card's level), Wild Surge and Zone of Protection (a die that ticks up), Fane of the Wilds (spend tokens after the roll; token count = your Sage cards), Forager (rolls the d6, doesn't look up the table), Grace-Touched and Splendor-Touched (paying with Armor Slots, Stress or Hope instead), Shadowhunter, Sage-Touched (+2 Spellcast in nature), Voice of Reason (+1 Proficiency with all Stress marked), Inevitable.
-- **Class resources without counters yet:** Focus (Martial Artist), Favor and the Patron Die (Warlock), Prayer Dice (Seraph), Slayer Dice, the Unstoppable Die, the Combo Die, Lunar Phases, Strange Patterns, Elemental Incarnation's Channel, martial stances.
-- **Experience tweaks:** Adept (Stress instead of Hope, double the Experience) and Honed Expertise (d6 to use it free).
+- **Not tracked:** Words of Discord (−5 when recast on the same target), Copycat (Hope = half the copied card's level), Fane of the Wilds (spend tokens after the roll; token count = your Sage cards), Forager (rolls the d6, doesn't look up the table), Grace-Touched and Splendor-Touched (paying with Armor Slots, Stress or Hope instead), Shadowhunter, Sage-Touched (+2 Spellcast in nature), Voice of Reason (+1 Proficiency with all Stress marked), Inevitable.
+
+## Phase 1 SRD pass: calls made and open questions
+
+Class resources, states, transformations and items now run from `src/rules/custom.ts` (per-feature buttons),
+`active.ts` (lasting effects with choices), `transformation.ts` and `items.ts`. `phase1.test.ts` covers them and
+sweeps every class, subclass and transformation from level 1 to 10 with everything switched on.
+
+**Calls made (say if you want them different):**
+- **Known martial stances:** two at the foundation plus one per level after 1 (multiclassing into Martial Artist later gives the same count).
+- **Companion Stress slots:** 3 (+1 Resilient). The SRD text doesn't print the number; it's on the companion sheet.
+- **Companion "Intelligent"** adds +1 to the first Companion Experience; **Honing Relic** adds +1 to your first Experience. Both say "of your choice".
+- **Gems, Greatstone, Bloodstone** go on your primary weapon (the stones only if it has no feature). Only the first gem and the first relic count.
+- **Combo Die** size is picked on the Combo Strike card, one step per tier (d4 → d6 at tier 2, and so on). The SRD makes it a level-up option; the level-up screen doesn't offer it yet.
+- **Contacts Everywhere "+3 to your Hope or Fear Die"** is applied to the Hope Die.
+- **Mnemonic Potion** gives the Hope back instead of making the next Experience free (the same thing if used right away).
+- **Stardrop, Jar of Lost Voices, shards (Emberite etc.)** roll their damage with no attack roll; the targets' reaction rolls are the GM's.
+- **"Until you take Severe damage / mark a Hit Point"** (Channel, Patron's Mantle, Eye of the Storm, Potion of Vigilance, stances): the app doesn't track incoming damage, so End them by hand.
+
+**Still reminders (the GM or the fiction decides):** Witch's Charm, Hex, Weight of Divinity's "or the GM gains a Fear", Ghost and
+Reanimated drawbacks, Corpse, Yakamel Milk, Hopehold Flare, Phobophage's Circlet trigger, Two-Faced Aegis Brooch and Eclipse Coin flips,
+Airblade Charm's extra attack, Ring of Resistance, Twin Fang and the poisons' effects on the target.
 
 ## Not extracted (out of scope for now)
 

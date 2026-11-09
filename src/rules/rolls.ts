@@ -18,6 +18,10 @@ export interface DualityRequest {
   advantage?: Advantage;
   /** Sides of the Hope Die (12; 20 with "roll a d20 as your Hope Die"). */
   hopeSides?: number;
+  /** Sides of the Fear Die (12; 20 with Vampire "Feed"). */
+  fearSides?: number;
+  /** Added to the Hope Die's result (Contacts Everywhere). */
+  hopeBonus?: number;
   /** Blaze of Glory: the action automatically critically succeeds. */
   forceCritical?: boolean;
 }
@@ -29,6 +33,8 @@ export interface DualityResult {
   hope: number;
   fear: number;
   hopeSides: number;
+  /** 12 unless a feature changes it. */
+  fearSides?: number;
   advantage: Advantage;
   advantageDie: number | null;
   modifiers: RollModifier[];
@@ -38,11 +44,11 @@ export interface DualityResult {
 
 export function dualityRoll(req: DualityRequest, rng: Rng = defaultRng): DualityResult {
   const hopeSides = req.hopeSides ?? 12;
-  const hope = roll(hopeSides, rng);
-  const fear = req.forceCritical ? Math.min(hope, 12) : roll(12, rng);
+  const hope = roll(hopeSides, rng) + (req.hopeBonus ?? 0);
+  const fear = req.forceCritical ? hope : roll(req.fearSides ?? 12, rng);
   const advantage = req.advantage ?? 'none';
   const advantageDie = advantage === 'none' ? null : roll(6, rng);
-  return scoreDuality({ label: req.label, hope, fear, hopeSides, advantage, advantageDie, modifiers: req.modifiers }, req.forceCritical);
+  return scoreDuality({ label: req.label, hope, fear, hopeSides, fearSides: req.fearSides ?? 12, advantage, advantageDie, modifiers: req.modifiers }, req.forceCritical);
 }
 
 /** Total and outcome for a set of duality dice (also used after a reroll). */
@@ -70,6 +76,8 @@ export interface DamageRequest {
   critical?: boolean;
   /** Massive / Powerful: roll one extra die of the first group and drop the lowest. */
   extraDieDropLowest?: boolean;
+  /** Brutal: "When you roll the maximum value on a damage die, roll an additional damage die" (and again on another maximum). */
+  brutal?: boolean;
 }
 
 export interface DamageResult {
@@ -89,6 +97,7 @@ export function damageRoll(req: DamageRequest, rng: Rng = defaultRng): DamageRes
       values.splice(values.indexOf(min), 1);
       dropped = min;
     }
+    if (req.brutal) for (let k = 0; k < values.length && values.length < 60; k++) if (values[k] === d.sides) values.push(roll(d.sides, rng));
     return { sides: d.sides, values, dropped };
   });
   // Critical: add the maximum possible result of the damage dice.

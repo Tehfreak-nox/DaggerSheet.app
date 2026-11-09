@@ -67,6 +67,25 @@ export interface PermanentPicks {
   vitality?: ('stress' | 'hitPoint' | 'thresholds')[];
   /** Master of the Craft: +2 to two Experiences or +3 to one (Experience indexes). */
   masterOfTheCraft?: { experiences: number[] };
+  /** Wizard "Strange Patterns": the chosen number (1–12). */
+  strangePatterns?: number;
+  /** Brawler Combo Die size (d4, raised by level advancements). */
+  comboDie?: number;
+  /** Martial Artist: stances known (ids). */
+  stances?: string[];
+  /** Shapeshifter "Change Shape": the ancestry feature taken (feature id). */
+  shapeshifter?: string;
+}
+
+/** A Beastbound Ranger's animal companion (SRD "Ranger Companion"). */
+export interface Companion {
+  name: string;
+  /** Companion Experiences (+2 each; one more each time you gain an Experience). */
+  experiences: string[];
+  /** Level-up options marked on the companion sheet (ids). */
+  options: string[];
+  damageType: 'physical' | 'magic';
+  stress: number;
 }
 
 export interface Character {
@@ -116,6 +135,16 @@ export interface Character {
   death?: 'unconscious' | 'blaze' | 'dead';
   /** Lasting effects switched on (feature keys, see active.ts). */
   active?: string[];
+  /** Options chosen for lasting effects (a stance's trait, a Channeled element), keyed like `active`. */
+  activeOpts?: Record<string, string[]>;
+  /** Dice kept with their values: Prayer Dice ("prayer"). */
+  heldDice?: Record<string, number[]>;
+  /** Ranger (Beastbound) companion sheet. */
+  companion?: Companion;
+  /** Reanimated "Won't Stay Dead": Hit Points marked for good (they can't be cleared). */
+  permanentHp?: number;
+  /** A chosen Transformation (SRD pp. 42–45), by id. */
+  transformation?: string;
   /** Track coins in the gold section (optional rule). */
   coins?: boolean;
   /** Custom gear created for this character (ids start with "hb-"). */

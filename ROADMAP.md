@@ -23,28 +23,28 @@ https://tehfreak-nox.github.io/DaggerSheet.app/
   - use boxes and tokens, refilling at rests.
 - Result-card follow-ups: rerolls, swap the dice, make it a roll with Hope, Slayer Dice, Glancing Blow and more.
 - Lasting effects: Full Surge, Frenzy, Force of Nature, the Warrior and Rogue Hope features.
-- Counters: the Unstoppable Die, Wild Surge, Zone of Protection, Slayer Dice.
+- Counters: the Unstoppable Die, Wild Surge, Zone of Protection, Slayer Dice, Focus, Favor, Prayer Dice.
 - Druid Beastform: every form, including Evolved and Hybrid; Evolution.
 - Tested by unit and simulation tests: all 9,360 class, subclass, ancestry and community combinations levelled to 10, plus browser sweeps of every card and feature.
 
 **Played and tuned with:** Kane of Eleven (Sorcerer), Tank (Guardian), Grum Mudrunner (Warrior).
 
-## Phase 1: everything works on its own
+## Phase 1: everything works on its own (done)
 
 The goal: a player who doesn't read the rules still gets them right, and the GM has nothing extra to track.
 
-1. **Full SRD pass, word for word**: every class, subclass, ancestry, community and domain card, every weapon and armor on every tier, every item and consumable, and the transformations.
-2. **Make each one automatic** where possible, one tap (arm or pay-and-roll) where not.
-3. **Flag every outlier** that fits no existing mechanic; the owner chooses how it should work, and that choice becomes a new mechanic reused for similar cards.
-4. **Class resources** that have no counters yet: Focus (Martial Artist), Favor and the Patron Die (Warlock), Prayer Dice (Seraph), the Combo Die (Brawler), martial stances, Elemental Channel, Lunar Phases, Strange Patterns.
-5. **Transformations** (Demigod, Ghost, Reanimated, Shapeshifter, Vampire, Werewolf):
-   - a **Transformation** option in the sheet menu, next to the rests and Level up;
-   - applied passively everywhere;
-   - shown on the Heritage tab only once chosen.
-6. **Big test run**:
-   - simulate every combination (thousands of characters) with the new rules;
-   - try to break them;
-   - fix what breaks before publishing.
+- **Full SRD pass, word for word**: every class, subclass, ancestry, community, domain card, weapon, armor, item, consumable and transformation.
+- **Class resources** with counters: Focus and Refocus, martial stances (one at a time, a Focus to shift), Favor and Tribute, the Patron Die,
+  Patron's Mantle and Fury, Prayer Dice (rolled at each new session), your Rally Die, the Combo Die chain, Channel (choose an element),
+  Transcendence (choose two), Lunar Phases (rolled at each new session), Strange Patterns, Circle of Power tokens, the Beastbound companion.
+- **Automatic** where the book allows: Conjure Shield, Rise to the Challenge, Honed Expertise, Unshakable, Calming Pendant, Hardy, Oasis,
+  Know the Tide, Luckbringer, Premium Bedroll, Timekeeper's Pendant, relics, gems, stones, Brutal, Phoenix Feather, Reliquary.
+- **Result-card follow-ups**: a Favor instead of Hope, Courage, Strange Patterns, Prayer Dice, Combo Strike, First Strike, Fearsome Attack,
+  Manipulate Magic, Arcane Charge, Face Your Fear, Invigorating, Exacting, Feed, Homet's Secret Potion.
+- **Transformations**: a menu option next to the rests; applied passively; shown on the Heritage tab once chosen.
+- **End scene** in the menu: stances and scene effects end, per-scene uses refresh.
+- **Tests**: every class × subclass × transformation levelled 1 → 10 with every effect switched on (7,000+ character-levels), plus browser sweeps.
+- Calls made and remaining reminders: see FLAGS.md.
 
 ## Phase 2: online campaigns (still free)
 

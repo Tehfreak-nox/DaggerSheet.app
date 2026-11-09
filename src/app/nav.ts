@@ -12,7 +12,8 @@ export type Screen =
   | { name: 'picker'; id: string; kind: 'weapon' | 'armor' | 'item'; slot?: 'primary' | 'secondary' | 'inventory' }
   | { name: 'rest'; id: string; kind: 'short' | 'long' }
   | { name: 'levelup'; id: string }
-  | { name: 'beastform'; id: string; via: 'beastform' | 'evolution' };
+  | { name: 'beastform'; id: string; via: 'beastform' | 'evolution' }
+  | { name: 'transformation'; id: string };
 
 const LAST_KEY = 'daggersheet:v1:last';
 

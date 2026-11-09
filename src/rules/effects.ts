@@ -6,7 +6,9 @@ import type { ItemFeature, TraitId } from '../data';
 export type Stat =
   | TraitId
   | 'evasion' | 'armorScore' | 'major' | 'severe' | 'hitPoints' | 'stress'
-  | 'attack' | 'spellcast' | 'primaryDamage'
+  | 'attack' | 'spellcast' | 'primaryDamage' | 'proficiency'
+  /** Every action and reaction roll (Demigod "Gifted", Lunar effects). */
+  | 'action'
   /** Weapon damage rolls (meleeOnly: weapons with Melee range). */
   | 'damage';
 

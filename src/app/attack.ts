@@ -1,8 +1,9 @@
 // Weapon and Beastform attacks, shared by the Equipment page and by features
 // that say "make an attack".
-import { activeForm, attackProfile, derive, type AttackProfile, type Modifier } from '../rules';
+import { activeForm, attackProfile, derive, type AttackProfile, type Control, type Modifier } from '../rules';
+import type { TraitId } from '../data';
 import { signed } from '../ui/kit';
-import { actionRoll, damage, setCrit, type DamageOptions } from './play';
+import { actionRoll, damage, pay, registerNaturalAttack, setCrit, type DamageOptions } from './play';
 import { getCharacter } from './store';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -17,7 +18,7 @@ export function weaponDamage(id: string, slot: 'primary' | 'secondary', o: Damag
   const dice = o.halfProf ? a.dice.map((x) => ({ ...x, count: Math.max(1, Math.ceil(x.count / 2)) })) : a.dice;
   const text = `${dice.map((x) => `${x.count}d${x.sides}`).join('+')}${bonus ? signed(bonus) : ''} ${a.damageType}`;
   damage(`Damage · ${a.name}`, {
-    dice, bonus, critical: !!o.critical, extraDieDropLowest: a.extraDieDropLowest,
+    dice, bonus, critical: !!o.critical, extraDieDropLowest: a.extraDieDropLowest, brutal: a.brutal,
   }, `${text}${o.critical ? ' · critical' : ''}${o.halfProf ? ' · half Proficiency' : ''}`, [], { charId: id, magic: a.damageType === 'mag', attack: true });
   setCrit(id, false);
 }
@@ -62,3 +63,23 @@ export function attackNow(id: string, primaryOnly = false): boolean {
   if (weaponAttack(id, 'primary')) return true;
   return !primaryOnly && weaponAttack(id, 'secondary');
 }
+
+/** An attack that isn't a weapon (Vampire Fangs, Elemental Breath, Long Tongue): roll it, then its damage. */
+export function naturalAttack(id: string, c: Extract<Control, { kind: 'natural' }>) {
+  const ch = getCharacter(id);
+  if (!ch) return;
+  if (!pay(id, c.cost)) return;
+  const d = derive(ch);
+  const trait: TraitId = c.trait === 'best' ? (Object.keys(d.traits) as TraitId[]).sort((x, y) => d.traits[y] - d.traits[x])[0] : c.trait;
+  const v = d.traits[trait];
+  const count = c.dice.count === 'proficiency' ? d.proficiency : c.dice.count === 'spellcast' ? Math.max(1, d.spellcast ?? 1) : typeof c.dice.count === 'number' ? c.dice.count : Math.max(1, d.traits[c.dice.count]);
+  const dmg = (o: DamageOptions) => {
+    const n = o.halfProf ? Math.max(1, Math.ceil(count / 2)) : count;
+    damage(`Damage · ${c.label}`, { dice: [{ count: n, sides: c.dice.sides }], bonus: 0, critical: !!o.critical },
+      `${n}d${c.dice.sides} ${c.type}${o.critical ? ' · critical' : ''}`, [], { charId: id, magic: c.type === 'magic', attack: true });
+    setCrit(id, false);
+  };
+  actionRoll(id, `Attack · ${c.label}`, [{ label: cap(trait), value: v }], `2d12 ${signed(v)}`, { attack: true, trait, damageFn: dmg });
+}
+
+registerNaturalAttack(naturalAttack);

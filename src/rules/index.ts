@@ -15,3 +15,7 @@ export * from './death';
 export * from './forms';
 export * from './active';
 export * from './inEffect';
+export * from './transformation';
+export * from './custom';
+export * from './items';
+export * from './companion';

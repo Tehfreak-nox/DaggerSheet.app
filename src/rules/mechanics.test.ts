@@ -103,7 +103,7 @@ describe('card and feature controls (reviewed against every card)', () => {
   });
 
   it('skips dice that only describe a rule', () => {
-    expect(feature('draining-bane')).toEqual([]);
+    expect(feature('draining-bane')).toEqual(['spend Spend 1 Favor']);
     expect(feature('i-am-the-weapon')).toEqual([]);
     expect(feature('fueled-by-fear')).toEqual([]);
     expect(feature('power-of-the-gods')).toEqual(['arm +1d12 damage']);

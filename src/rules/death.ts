@@ -3,6 +3,7 @@ import { rules } from '../data';
 import { defaultRng, roll, type Rng } from './dice';
 import { derive } from './derive';
 import type { Character } from './model';
+import { carries } from './items';
 
 /** Marked their last Hit Point and hasn't chosen a death move yet. */
 export function mustMakeDeathMove(ch: Character): boolean {
@@ -26,7 +27,8 @@ export interface AvoidDeathResult {
 /** Avoid Death: drop unconscious, then roll the Hope Die; at or under your level you gain a scar. */
 export function avoidDeath(ch: Character, rng: Rng = defaultRng): AvoidDeathResult {
   const hopeDie = roll(12, rng);
-  const scarred = hopeDie <= ch.level;
+  // Phoenix Feather: "+1 bonus to the roll you make to determine whether you gain a scar."
+  const scarred = hopeDie + (carries(ch, 'phoenix-feather') ? 1 : 0) <= ch.level;
   const scars = (ch.scars ?? 0) + (scarred ? 1 : 0);
   const slots = Math.max(0, rules.caps.hope - scars);
   const { beastform: _, ...c } = ch;
@@ -51,7 +53,8 @@ export interface RiskItAllResult {
  * the rest to Stress, any excess is lost).
  */
 export function riskItAll(ch: Character, rng: Rng = defaultRng): RiskItAllResult {
-  const hope = roll(12, rng);
+  // Reliquary of the Sightless Saint: "+1 bonus to your Hope Die when you make the Risk It All death move."
+  const hope = roll(12, rng) + (carries(ch, 'reliquary-of-the-sightless-saint') ? 1 : 0);
   const fear = roll(12, rng);
   const { beastform: _, ...c } = ch;
   if (hope === fear) return { hope, fear, outcome: 'all', character: { ...c, hp: 0, stress: 0 } };
@@ -61,7 +64,7 @@ export function riskItAll(ch: Character, rng: Rng = defaultRng): RiskItAllResult
 
 export function splitClear(ch: Character, points: number, toHp: number): Character {
   const hp = Math.max(0, Math.min(points, toHp));
-  return { ...ch, hp: Math.max(0, ch.hp - hp), stress: Math.max(0, ch.stress - (points - hp)) };
+  return { ...ch, hp: Math.max(ch.permanentHp ?? 0, ch.hp - hp), stress: Math.max(0, ch.stress - (points - hp)) };
 }
 
 /** An ally clears 1 or more of your Hit Points: you regain consciousness. */
@@ -75,7 +78,7 @@ export function wake(ch: Character, cleared = 1): Character {
  */
 export function setHitPoints(ch: Character, hp: number): Character {
   const max = derive(ch).hitPoints;
-  let c: Character = { ...ch, hp: Math.max(0, Math.min(max, hp)) };
+  let c: Character = { ...ch, hp: Math.max(ch.permanentHp ?? 0, Math.min(max, hp)) };
   if (c.hp >= max && c.beastform) { const { beastform: _, ...rest } = c; c = rest; }
   if (c.death === 'unconscious' && c.hp < ch.hp) c = { ...c, death: undefined };
   return c;

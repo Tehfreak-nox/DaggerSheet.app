@@ -1,7 +1,8 @@
 // Every feature and card text in effect for a character, keyed the way the
 // sheet keys its use boxes and tokens ("card:<id>", "anc:<feature>", …).
 import { cardById, classById, communityById, type DomainId } from '../data';
-import { ancestryFeatures, classOf, multiclassSubclass, subclassOf, STAGES } from './derive';
+import { transformationFeatures } from './transformation';
+import { workingAncestryFeatures, classOf, multiclassSubclass, subclassOf, STAGES } from './derive';
 import { activeForm } from './forms';
 import type { Character } from './model';
 
@@ -23,7 +24,8 @@ export function inEffect(ch: Character): InEffect[] {
   if (mc) for (const f of mc.features) out.push({ key: `mc:${f.id}`, name: f.name, text: f.text });
   const mcs = multiclassSubclass(ch);
   if (mcs) for (const f of mcs.foundation) out.push({ key: `mcsub:${f.id}`, name: f.name, text: f.text });
-  for (const f of ancestryFeatures(ch)) out.push({ key: `anc:${f.id}`, name: f.name, text: f.text });
+  for (const f of workingAncestryFeatures(ch)) out.push({ key: `anc:${f.id}`, name: f.name, text: f.text });
+  for (const f of transformationFeatures(ch)) out.push({ key: `tf:${f.id}`, name: f.name, text: f.text });
   const com = communityById.get(ch.communityId);
   if (com) out.push({ key: `com:${com.feature.id}`, name: com.feature.name, text: com.feature.text });
   for (const id of ch.cards.loadout) {

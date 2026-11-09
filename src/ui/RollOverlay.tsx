@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  addDamageDice, addDieToRoll, addToDamage, applyFromResult, closeRoll, lastFearDie, makeItHope, maxOneDamageDie, pay,
-  rerollDamage, rerollDuality, rerollFearDie, rerollHopeDie, swapDuality, takePoolDie, usePlay, type RollView,
+  addDamageDice, addDieToRoll, addToDamage, addToRoll, applyFromResult, closeRoll, comboStrike, doubleDamageDie, doubleDamageTotal,
+  lastFearDie, makeItCritical, makeItHope, maxOneDamageDie, onesToMax, pay, rerollDamage, rerollDuality, rerollFearDie, rerollHopeDie, resourceOf,
+  spendHeld, swapDuality, takePoolDie, toggleArm, usePlay, withGain, type RollView,
 } from '../app/play';
-import { useStore } from '../app/store';
-import { controlsFor, derive, inEffect, strip, type Character, type InEffect } from '../rules';
+import { updateCharacter, useStore } from '../app/store';
+import { FEED_KEY, controlsFor, derive, hasFeature, inEffect, isActive, rollMany, setActive, strip, type Character, type InEffect } from '../rules';
 import { signed } from './kit';
 
 function useTumble(active: boolean, sides: number) {
@@ -120,6 +121,41 @@ function Followups({ r, ch, picked, setPicked, picking, setPicking }: {
         opt('tg', 'Target marks +1 HP', (c) => c);
       }
     }
+    const has = (id: string) => hasFeature(ch, id);
+    if (r.critOffer && !crit) btn('homet', 'Hit? Make it a critical (Homet’s Secret Potion)', () => makeItCritical('Homet’s Secret Potion'), { solid: true });
+    // Strange Patterns: your number on a Duality Die gives a Hope or clears a Stress.
+    const sp = ch.picks.strangePatterns;
+    if (sp && has('strange-patterns') && (x.hope === sp || x.fear === sp) && !used('Strange Patterns')) {
+      btn('sp-h', `Strange Patterns (${sp}) · +1 Hope`, () => applyFromResult('Strange Patterns', (c) => withGain(c, { hope: 1 }), undefined, 'Strange Patterns: +1 Hope.'), { solid: true });
+      btn('sp-s', `Strange Patterns (${sp}) · clear a Stress`, () => applyFromResult('Strange Patterns', (c) => withGain(c, { stress: 1 }), undefined, 'Strange Patterns: cleared a Stress.'));
+    }
+    // Favor: "when you succeed on an action roll with Hope, you can choose to gain a Favor instead of a Hope."
+    if (has('favor') && r.applied.hope > 0 && !used('Favor') && resourceOf(ch, 'favor') < 6) {
+      btn('favor', 'Succeeded? Take a Favor instead of the Hope', () => applyFromResult('Favor', (c) => withGain({ ...c, hope: Math.max(0, c.hope - 1) }, { res: { res: 'favor', n: 1 } }), undefined, 'Took a Favor instead of a Hope.'));
+    }
+    // Courage: "When you fail a roll with Fear, you gain a Hope."
+    if (has('courage') && fear && !used('Courage')) btn('courage', 'Failed? Courage · +1 Hope', () => applyFromResult('Courage', (c) => withGain(c, { hope: 1 }), undefined, 'Courage: +1 Hope.'));
+    // Demigod: "When you fail a roll, you must mark a Stress or the GM gains a Fear."
+    if (ch.transformation === 'demigod' && !used('Weight of Divinity')) btn('wod', 'Failed? Weight of Divinity · mark a Stress (or the GM gains a Fear)', () => applyFromResult('Weight of Divinity', (c) => c, { stress: 1 }, 'Weight of Divinity: marked a Stress.'));
+    // True Strike: once per long rest, a failed attack becomes a success for a Hope.
+    if (r.attack && has('true-strike') && (ch.uses['longRest:sub:true-strike'] ?? 0) < 1 && !used('True Strike')) {
+      btn('ts', 'Missed? True Strike · 1 Hope, it hits', () => applyFromResult('True Strike', (c) => ({ ...c, uses: { ...c.uses, 'longRest:sub:true-strike': 1 } }), { hope: 1 }, 'True Strike: the attack succeeds.'));
+    }
+    // Manipulate Magic: after a spell or a magic attack, mark a Stress for +2.
+    if (has('manipulate-magic') && !used('Manipulate Magic')) btn('mm', 'Spell or magic attack? +2 · 1 Stress (Manipulate Magic)', () => addToRoll('Manipulate Magic', 2, { stress: 1 }));
+    // Martial stance Invigorating: on a successful attack, a d4; on a 4, gain a Focus.
+    if (r.attack && isActive(ch, 'stance:invigorating') && !used('Invigorating')) {
+      btn('inv', 'Hit? Invigorating · roll a d4', () => { const v = rollMany(1, 4)[0]; applyFromResult('Invigorating', (c) => (v === 4 ? withGain(c, { res: { res: 'focus', n: 1 } }) : c), undefined, `Invigorating: d4 = ${v}${v === 4 ? ', +1 Focus.' : '.'}`); });
+    }
+    // Face Your Fear: "When you succeed with Fear on an attack roll, you deal an extra 1d10 magic damage" (2d10, 3d10).
+    if (r.attack && fear && has('face-your-fear') && !used('Face Your Fear')) {
+      const n = has('have-no-fear') ? 3 : has('fueled-by-fear') ? 2 : 1;
+      btn('fyf', `Hit? Face Your Fear · +${n}d10 magic on the damage`, () => { toggleArm(ch.id, { key: 'sub:face-your-fear', label: `Face Your Fear +${n}d10`, effect: { damageDice: { count: n, sides: 10 } } }); applyFromResult('Face Your Fear', (c) => c, undefined, `Face Your Fear: +${n}d10 armed for the damage.`); });
+    }
+    // Prayer Dice: add one to this roll.
+    (ch.heldDice?.prayer ?? []).forEach((v, i) => {
+      btn(`pd${i}`, `Prayer Die · +${v}`, () => { spendHeld(ch.id, 'prayer', i); addToRoll('Prayer Die', v); });
+    });
     // A pool of dice gained instead of a Hope (Slayer Dice).
     if ((x.outcome === 'hope' || crit) && !r.reaction) {
       for (const e of effects) {
@@ -134,6 +170,47 @@ function Followups({ r, ch, picked, setPicked, picking, setPicking }: {
     if (r.damageFn && crit) btn('cd', 'Roll critical damage', () => { closeRoll(); r.damageFn!({ critical: true }); }, { solid: true });
   } else if (r.kind === 'damage') {
     const ones = r.result.rolls.reduce((k, g) => k + g.values.filter((v) => v === 1).length, 0);
+    const has = (id: string) => hasFeature(ch, id);
+    if (r.attack) {
+      // Combo Strike: mark a Stress (or spend a Focus with Flow State) after rolling damage with a Melee weapon.
+      if (has('combo-strike') && !used('Combo Strike')) {
+        const sides = ch.picks.comboDie ?? 4;
+        btn('combo', `Melee hit? Combo Strike · d${sides} · 1 Stress`, () => comboStrike('Combo Strike', sides, { stress: 1 }), { solid: true });
+        if (has('flow-state')) btn('combo-f', `Combo Strike · d${sides} · 1 Focus`, () => comboStrike('Combo Strike', sides, { res: 'focus', n: 1 }), { disabled: resourceOf(ch, 'focus') < 1 });
+      }
+      // First Strike: "The first time in a scene you succeed on an attack, you deal double damage."
+      if (has('first-strike') && (ch.uses['scene:sub:first-strike'] ?? 0) < 1 && !used('First Strike')) btn('fs', 'First hit this scene? First Strike · double', () => doubleDamageTotal('First Strike', 'scene:sub:first-strike'));
+      // Exacting stance: 1s count as the highest value.
+      if (isActive(ch, 'stance:exacting') && ones && !used('Exacting')) btn('ex', `Exacting · ${ones === 1 ? 'your 1 counts' : `${ones} 1s count`} as max`, () => onesToMax('Exacting'));
+      // Arcane Charge: clear your Charge for +10 on a magic attack.
+      if (r.magic && isActive(ch, 'sub:arcane-charge') && !used('Arcane Charge')) btn('ac', 'Clear your Charge · +10 damage', () => { addToDamage('Arcane Charge', 10); updateCharacter(ch.id, (c) => setActive(c, 'sub:arcane-charge', false)); });
+      // Manipulate Magic: double a damage die for a Stress.
+      if (r.magic && has('manipulate-magic') && !used('Manipulate Magic')) btn('mmd', 'Double your highest die · 1 Stress (Manipulate Magic)', () => doubleDamageDie('Manipulate Magic', { stress: 1 }));
+      // Vampire Feed: tokens equal to the Hit Points the target marks.
+      if (ch.transformation === 'vampire' && /Fangs/.test(r.title) && !used('Feed')) {
+        for (const n of [1, 2, 3]) btn(`feed${n}`, `Feed · ${n} HP marked · 1 Stress`, () => applyFromResult('Feed', (c) => ({ ...c, uses: { ...c.uses, [FEED_KEY]: Math.min(6, (c.uses[FEED_KEY] ?? 0) + n) } }), { stress: 1 }, `Feed: +${n} token${n > 1 ? 's' : ''}.`));
+      }
+    }
+    // Prayer Dice: add one to this damage roll.
+    (ch.heldDice?.prayer ?? []).forEach((v, i) => {
+      btn(`pd${i}`, `Prayer Die · +${v}`, () => { spendHeld(ch.id, 'prayer', i); addToRoll('Prayer Die', v); });
+    });
+    // Fearsome Attack: spend a Favor to reroll any number of damage dice, again and again.
+    if (has('fearsome-attack') && r.attack) {
+      if (!picking) btn('fa', 'Fearsome Attack · reroll dice for 1 Favor', () => setPicking(true), { disabled: resourceOf(ch, 'favor') < 1 });
+      else {
+        out.push(
+          <span key="fa-hint" className="s-muted" style={{ fontSize: 14, textAlign: 'center' }}>Tap the dice to reroll.</span>,
+          <span key="fa" style={{ display: 'flex', gap: 8 }}>
+            <button className="s-btn s-press" style={{ flex: 1 }} onClick={() => { setPicking(false); setPicked(new Set()); }}>Cancel</button>
+            <button className="s-btn solid s-press" style={{ flex: 2 }} disabled={!picked.size || resourceOf(ch, 'favor') < 1}
+              onClick={() => { const p = new Set(picked); setPicking(false); setPicked(new Set()); if (pay(ch.id, { res: 'favor', n: 1 })) rerollDamage('Fearsome Attack', (_, g, i) => p.has(key(g, i))); }}>
+              Reroll {picked.size || ''} · 1 Favor
+            </button>
+          </span>,
+        );
+      }
+    }
     for (const e of effects) {
       const spent = usesLeft(ch, e).left <= 0 || used(e.name);
       let m: RegExpExecArray | null;

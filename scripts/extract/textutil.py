@@ -22,6 +22,7 @@ def plain(s: str) -> str:
 
 def tidy(s: str) -> str:
     """Normalise markup after lines have been joined."""
+    s = s.replace('\uf0e0', '→')                 # Symbol-font arrow (Sneak Attack tier table)
     s = re.sub(r'\*\*\s*\*\*', ' ', s)           # **a** **b** -> **a b**
     s = re.sub(r'__\s*__', ' ', s)
     s = re.sub(r'(?<=\w)_\s+_(?=\w)', ' ', s)             # _a_ _b_ -> _a b_

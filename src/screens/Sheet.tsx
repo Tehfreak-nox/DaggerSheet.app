@@ -1,6 +1,7 @@
 import { go, home, replace } from '../app/nav';
 import { updateCharacter, useStore } from '../app/store';
-import { mustLongRest, newSession } from '../rules';
+import { endScene, mustLongRest, newSession, transformationOf } from '../rules';
+import { toast } from '../app/toast';
 import { effectiveMode, toggleMode } from '../app/theme';
 import { Header, themeAttrs } from '../ui/Header';
 import { CharacterTab } from './CharacterTab';
@@ -28,7 +29,9 @@ export function Sheet({ id, tab = 'character' }: { id: string; tab?: 'character'
           { label: 'Short rest', note: longOnly ? 'Long rest needed' : `${ch.shortRestStreak}/3 in a row`, disabled: longOnly, onClick: () => go({ name: 'rest', id, kind: 'short' }) },
           { label: 'Long rest', onClick: () => go({ name: 'rest', id, kind: 'long' }) },
           { label: 'Level up', note: ch.level >= 10 ? 'Max level' : `to ${ch.level + 1}`, disabled: ch.level >= 10, onClick: () => go({ name: 'levelup', id }) },
-          { label: 'New session', note: 'Refresh per-session uses', onClick: () => updateCharacter(id, newSession) },
+          { label: 'End scene', note: 'Stances and scene effects end', onClick: () => { updateCharacter(id, endScene); toast('Scene ended: per-scene uses refreshed.'); } },
+          { label: 'New session', note: 'Refresh per-session uses', onClick: () => { updateCharacter(id, (c) => newSession(c)); toast('New session: per-session uses refreshed.'); } },
+          { label: 'Transformation', note: transformationOf(ch)?.name ?? 'None', onClick: () => go({ name: 'transformation', id }) },
           { label: 'Cards & vault', onClick: () => go({ name: 'vault', id }) },
           { label: 'Light / dark mode', note: effectiveMode() === 'dark' ? 'Dark' : 'Light', onClick: () => toggleMode() },
         ]}

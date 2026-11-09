@@ -20,7 +20,14 @@ export type UseScope = 'rest' | 'longRest' | 'session' | 'scene';
 /** How many dice: a number, or one of your stats. */
 export type Count = number | 'proficiency' | 'spellcast' | TraitId;
 
-export type Cost = { hope: number } | { stress: number };
+/** Class resources kept as counters on the sheet (Martial Artist Focus, Warlock Favor). */
+export type Resource = 'focus' | 'favor';
+export const RESOURCES: Record<Resource, { name: string; max: number; start: number }> = {
+  focus: { name: 'Focus', max: 6, start: 0 },
+  favor: { name: 'Favor', max: 6, start: 3 },
+};
+
+export type Cost = { hope: number } | { stress: number } | { res: Resource; n: number };
 
 export type RollControl = { kind: 'roll'; trait: TraitId | 'spellcast'; difficulty?: number; reaction?: boolean; label: string };
 export type DiceControl = { kind: 'dice'; count: Count; sides: number; bonus: number; label: string; upgrade?: { level: number; sides: number } };
@@ -39,10 +46,51 @@ export type ArmEffect =
   | { proficiency: number }
   /** "use a d20 as your damage die". */
   | { damageDie: number }
-  | { doubleDamage: true };
+  | { doubleDamage: true }
+  /** Roll a die and add it to your next action roll (Patron Die). */
+  | { rollDie: number }
+  /** Roll a die into your next action roll or damage roll, whichever comes first (Rally Die). */
+  | { anyDie: number }
+  /** "+3 bonus to the result of your Hope Die" (Contacts Everywhere). */
+  | { hopeBonus: number }
+  /** Adept: your next Experience costs a Stress instead of a Hope and counts double. */
+  | { adept: true }
+  /** Feed: your Fear Die is a d20 on the next action roll. */
+  | { fearDie: number }
+  /** "+1 bonus to your next Agility Roll": only a roll of that trait. */
+  | { traitRoll: TraitId; value: number }
+  /** "the next successful attack you make critically succeeds" (Homet's Secret Potion). */
+  | { critOnHit: true };
+
+/** What a one-tap feature does for you ("clear 2 Stress and gain 2 Hope"). */
+export interface Gain { hope?: number; stress?: number; hp?: number; armor?: number; res?: { res: Resource; n: number }; uses?: Record<string, number> }
 
 export type Control =
   | { kind: 'hope'; n: number; label: string; once?: UseScope }
+  /** Pay a class resource (Spend a Favor, Spend a Focus). */
+  | { kind: 'spend'; cost: Cost; label: string; once?: UseScope; gain?: Gain }
+  /** Gain or clear something in one tap (Battle Ritual, Limit Breaker, songs). */
+  | { kind: 'gain'; gain: Gain; cost?: Cost; label: string; once?: UseScope; max?: number; useKey?: string; note?: string }
+  /** A class resource counter (Focus, Favor). */
+  | { kind: 'resource'; res: Resource; label: string;
+    /** Refocus: once per rest, clear Focus and gain the highest of your Instinct in d6s. */
+    refocus?: boolean;
+    /** Tribute (a downtime move): gain Favor equal to your Spellcast trait. */
+    tribute?: boolean }
+  /** Dice kept with their values (Prayer Dice): spend one for Hope, or on a roll from the result card. */
+  | { kind: 'heldDice'; store: string; label: string }
+  /** A die you hold until you spend it (your own Rally Die). */
+  | { kind: 'rallyDie'; sides: number; label: string }
+  /** A d6 on the card choosing an effect for the session (Lunar Phases). */
+  | { kind: 'phaseDie'; label: string }
+  /** Choose a number kept on the sheet (Strange Patterns). */
+  | { kind: 'pickNumber'; field: 'strangePatterns'; min: number; max: number; label: string }
+  /** Choose a die size kept on the sheet (Combo Die). */
+  | { kind: 'pickDie'; field: 'comboDie'; options: number[]; label: string }
+  /** Channel Raw Power: put a loadout card in the vault for Hope or damage. */
+  | { kind: 'channelRaw'; label: string }
+  /** An attack that isn't a weapon (Fangs, Elemental Breath, Long Tongue). */
+  | { kind: 'natural'; trait: TraitId | 'best'; dice: { count: Count; sides: number }; type: 'magic' | 'physical'; cost?: Cost; label: string }
   | { kind: 'stress'; n: number; label: string; once?: UseScope }
   | RollControl
   | DiceControl
@@ -55,7 +103,17 @@ export type Control =
     /** Paid with tokens from the card ("spend one token to choose one of the following options"). */
     tokenCost?: number }
   /** Rule 4: choose an amount; pay that much (Hope, Stress or tokens) and roll that many dice. */
-  | { kind: 'scaled'; unit: 'hope' | 'stress' | 'tokens' | 'count'; min: number; max?: number; per?: { sides: number; bonus: number; damage: boolean; type: 'magic' | 'physical' | null; toDamageRoll?: boolean }; flat?: number; toRoll?: boolean; label: string; once?: UseScope }
+  | { kind: 'scaled'; unit: 'hope' | 'stress' | 'tokens' | 'count' | Resource; min: number; max?: number;
+    per?: { sides: number; bonus: number; damage: boolean; type: 'magic' | 'physical' | null; toDamageRoll?: boolean };
+    flat?: number; toRoll?: boolean; label: string; once?: UseScope;
+    /** Patron Dice: count results of `atLeast` or higher (and clear that many Hit Points with `clearHp`). */
+    atLeast?: number; clearHp?: boolean;
+    /** Show the highest result (Otherworldly Ire). */
+    highest?: boolean;
+    /** The amount paid becomes tokens on this card (Enchanted Talisman). */
+    toTokens?: boolean;
+    /** What the amount does, shown in the toast ("the target marks that many Stress"). */
+    note?: string }
   /** Choose one bonus for the roll (Teleport). */
   | { kind: 'choice'; options: { label: string; value: number }[]; label: string }
   | { kind: 'uses'; scope: UseScope; max: number; label: string }
@@ -119,7 +177,7 @@ export function diceText(count: Count, sides: number, bonus: number): string {
 }
 
 export function costLabel(c: Cost): string {
-  return 'hope' in c ? `${c.hope} Hope` : `${c.stress} Stress`;
+  return 'hope' in c ? `${c.hope} Hope` : 'stress' in c ? `${c.stress} Stress` : `${c.n} ${RESOURCES[c.res].name}`;
 }
 
 interface Sentence { text: string; at: number; para: number }
@@ -379,14 +437,14 @@ export function controlsFor(rawText: string): Control[] {
 
   // ---- singles --------------------------------------------------------------
   const costs: { at: number; end: number; cost: Cost }[] = [];
-  for (const m of text.matchAll(/\b(spend|mark) (a|an|one|two|three|four|five|\d+|another|an additional) (Hope|Stress)\b/gi)) {
+  for (const m of text.matchAll(/\b(spend|mark) (a|an|one|two|three|four|five|\d+|another|an additional) (Hope|Stress|Focus|Favor)\b/gi)) {
     if (isUsed(m.index!)) continue;
     const lead = text.slice(Math.max(0, m.index! - 50), m.index!);
     if (OTHER_SUBJECT.test(lead) && !/\byou(?: can| must)?\s*$|\b(?:and|or)\s*$|^\s*$|[.:]\s*$/i.test(lead.slice(-12))) continue;
     if (/\b(you can both|can choose who marks)/i.test(lead)) continue;
     if (CONDITION_LEAD.test(lead) || (inCondition(text, m.index!) && !/\byou can\s*$/i.test(lead))) continue;
     const amount = n(m[2]);
-    costs.push({ at: m.index!, end: m.index! + m[0].length, cost: /hope/i.test(m[3]) ? { hope: amount } : { stress: amount } });
+    costs.push({ at: m.index!, end: m.index! + m[0].length, cost: /hope/i.test(m[3]) ? { hope: amount } : /stress/i.test(m[3]) ? { stress: amount } : { res: m[3].toLowerCase() as Resource, n: amount } });
   }
 
   const rolls: { at: number; end: number; c: RollControl | AttackControl }[] = [];
@@ -470,7 +528,7 @@ export function controlsFor(rawText: string): Control[] {
       const what = then.kind === 'roll' ? (then.trait === 'spellcast' ? 'Spellcast' : then.label) : then.kind === 'attack' ? 'Attack' : diceText(then.count, then.sides, then.bonus);
       add(k.at, { kind: 'pay', cost: k.cost, then, label: `${costLabel(k.cost)} · ${what}` });
     } else {
-      add(k.at, 'hope' in k.cost ? { kind: 'hope', n: k.cost.hope, label: `Spend ${k.cost.hope} Hope` } : { kind: 'stress', n: k.cost.stress, label: `Mark ${k.cost.stress} Stress` });
+      add(k.at, 'hope' in k.cost ? { kind: 'hope', n: k.cost.hope, label: `Spend ${k.cost.hope} Hope` } : 'stress' in k.cost ? { kind: 'stress', n: k.cost.stress, label: `Mark ${k.cost.stress} Stress` } : { kind: 'spend', cost: k.cost, label: `Spend ${costLabel(k.cost)}` });
     }
   }
   for (const r of rolls) if (!paid.has(r.at)) add(r.at, r.c);

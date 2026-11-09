@@ -3,14 +3,15 @@ import { actionRoll, armedFor, armedText, clearArmed, showDice, toggleAdvantage,
 import { toast } from '../app/toast';
 import { updateCharacter } from '../app/store';
 import { go } from '../app/nav';
-import { cardById, classById, communityById, rules, type TraitId } from '../data';
+import { ancestries, cardById, classById, communityById, rules, type TraitId } from '../data';
 import {
-  ACTIVE, activeForm, ancestryFeatures, avoidDeath, blazeOfGlory, derive, dropOut, hasBeastform, multiclassSubclass,
+  ACTIVE, activeForm, ancestryFeatures, transformationOf, workingAncestryFeatures, avoidDeath, blazeOfGlory, derive, dropOut, hasBeastform, multiclassSubclass,
   mustMakeDeathMove, riskItAll, setHitPoints, splitClear, STAGES, subclassOf, TRAIT_IDS, wake,
   type Character,
 } from '../rules';
 import { TRAIT_VERBS } from '../theme/tables';
 import { FeatureCard } from '../ui/FeatureCard';
+import { CompanionPanel } from '../ui/Companion';
 import { cap, DomainIcon, Icon, ICONS, Recall, Rich, signed, Title, Track } from '../ui/kit';
 
 type Tab = 'class' | 'subclass' | 'heritage' | 'cards';
@@ -168,6 +169,7 @@ function FeaturesPanel({ ch }: { ch: Character }) {
   const mcCls = ch.multiclass ? classById.get(ch.multiclass.classId) : undefined;
   const stageIdx = STAGES.indexOf(ch.subclassStage);
   const [a1, a2] = ancestryFeatures(ch);
+  const tf = transformationOf(ch);
   const com = communityById.get(ch.communityId)!;
   const idx = TABS.indexOf(tab);
 
@@ -232,10 +234,24 @@ function FeaturesPanel({ ch }: { ch: Character }) {
             {tab === 'heritage' && (
               <>
                 <span className="s-label panel-head">{ancestryName ?? cap(('id' in ch.ancestry && ch.ancestry.id) || '')}</span>
-                <FeatureCard ch={ch} featureKey={`anc:${a1.id}`} name={a1.name} text={a1.text} />
-                <FeatureCard ch={ch} featureKey={`anc:${a2.id}`} name={a2.name} text={a2.text} />
+                {[a1, a2].map((f) => {
+                  const off = !workingAncestryFeatures(ch).some((x) => x.id === f.id);
+                  return (
+                    <FeatureCard key={f.id} ch={ch} featureKey={`anc:${f.id}`} name={f.name} text={f.text} ghost={off}
+                      tag={tf?.id === 'shapeshifter' ? (off ? 'Not in use' : 'In use') : undefined}
+                      extra={tf?.id === 'shapeshifter' && off ? <button className="s-mini" style={{ alignSelf: 'flex-start' }}
+                        onClick={() => updateCharacter(ch.id, (c) => ({ ...c, picks: { ...c.picks, shapeshifter: f.id } }))}>Use this one (downtime move)</button> : undefined} />
+                  );
+                })}
+                {tf?.id === 'shapeshifter' && <ShapeshiftAncestry ch={ch} />}
                 <span className="s-label panel-head">{com.name}</span>
                 <FeatureCard ch={ch} featureKey={`com:${com.feature.id}`} name={com.feature.name} text={com.feature.text} />
+                {tf && (
+                  <>
+                    <span className="s-label panel-head">{tf.name} · Transformation</span>
+                    {tf.features.map((f) => <FeatureCard key={f.id} ch={ch} featureKey={`tf:${f.id}`} name={f.name} text={f.text} />)}
+                  </>
+                )}
               </>
             )}
             {tab === 'cards' && <CardsTab ch={ch} />}
@@ -275,21 +291,43 @@ function ClassExtras({ ch }: { ch: Character }) {
   const d = derive(ch);
   const [open, setOpen] = useState(false);
   if (ex.martialStances && ch.subclassId === 'martial-artist') {
+    // Two Tier 1 stances when you take the foundation, one more each level.
+    const known = ch.picks.stances ?? [];
+    const max = 2 + Math.max(0, ch.level - 1);
+    const all = ex.martialStances.stances;
+    const learn = (sid: string, on: boolean) => updateCharacter(ch.id, (c) => ({ ...c, picks: { ...c.picks, stances: on ? [...(c.picks.stances ?? []), sid] : (c.picks.stances ?? []).filter((x) => x !== sid) } }));
     return (
-      <Expander title="Martial stances" open={open} onToggle={() => setOpen(!open)}>
-        {ex.martialStances.stances.filter((s) => s.tier <= d.tier).map((s) => (
-          <FeatureCard key={s.id} ch={ch} featureKey={`stance:${s.id}`} name={s.name} text={s.text} meta={`Tier ${s.tier}`} />
+      <>
+        <span className="s-label panel-head">Martial stances · {known.length}/{max} known</span>
+        {all.filter((st) => known.includes(st.id)).map((st) => (
+          <FeatureCard key={st.id} ch={ch} featureKey={`stance:${st.id}`} name={st.name} text={st.text} meta={`Tier ${st.tier}`} />
         ))}
-      </Expander>
+        <Expander title={known.length ? 'Learn or forget stances' : 'Choose your stances'} open={open || !known.length} onToggle={() => setOpen(!open)}>
+          {all.filter((st) => st.tier <= d.tier).map((st) => {
+            const has = known.includes(st.id);
+            return (
+              <div key={st.id} className="s-row" style={{ alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ flex: 1, fontSize: 14, lineHeight: 1.4 }}><b>{st.name}</b> <span className="s-muted">Tier {st.tier}</span><br /><Rich text={st.text} /></span>
+                <button className={`s-mini ${has ? 'solid' : ''}`} aria-pressed={has} disabled={!has && (known.length >= max || (known.length < 2 && st.tier > 1))}
+                  onClick={() => learn(st.id, !has)}>{has ? 'Known' : 'Learn'}</button>
+              </div>
+            );
+          })}
+        </Expander>
+      </>
     );
   }
   if (ex.companion && ch.subclassId === 'beastbound') {
     return (
-      <Expander title="Ranger companion" open={open} onToggle={() => setOpen(!open)}>
+      <>
+      <span className="s-label panel-head">Companion</span>
+      <CompanionPanel ch={ch} />
+      <Expander title="Companion rules" open={open} onToggle={() => setOpen(!open)}>
         {[...ex.companion.steps, ...ex.companion.rules].map((s) => (
           <FeatureCard key={s.title} ch={ch} featureKey={`comp:${s.title}`} name={s.title || 'Companion'} text={s.text} />
         ))}
       </Expander>
+      </>
     );
   }
   return null;
@@ -354,11 +392,22 @@ function DeathPanel({ ch }: { ch: Character }) {
       </div>
     );
   }
+  const riskHope = ch.uses['death:riskHope'] ?? 0;
   if (ch.death === 'dead') {
     return (
       <div className="death stack-10">
         <span className="s-label" style={{ fontSize: 18 }}>Beyond the veil</span>
         <span className="s-feat-text">{(ch.scars ?? 0) >= rules.caps.hope ? 'Your last Hope slot is crossed out: your character’s journey ends.' : 'Your character has crossed through the veil of death.'}</span>
+        {ch.transformation === 'reanimated' && riskHope > 0 && (
+          <button className="s-btn solid s-press" onClick={() => {
+            const permanentHp = (ch.permanentHp ?? 0) + 1;
+            const { 'death:riskHope': _, ...uses } = ch.uses;
+            const revived: Character = { ...ch, permanentHp, uses, death: undefined };
+            if (derive(revived).hitPoints <= permanentHp) { set({ ...revived, death: 'dead', uses }); toast('Your last Hit Point is permanently marked: you pass through the veil of death.'); return; }
+            set(splitClear(revived, riskHope, Math.min(riskHope, revived.hp)));
+            setSplit({ points: riskHope, before: revived, toHp: Math.min(riskHope, revived.hp) });
+          }}>Won’t Stay Dead · permanently mark a Hit Point to succeed</button>
+        )}
         <button className="s-mini" style={{ alignSelf: 'flex-start' }} onClick={() => set({ ...ch, death: undefined })}>Undo (GM ruling)</button>
       </div>
     );
@@ -428,7 +477,8 @@ function DeathPanel({ ch }: { ch: Character }) {
         <span className="s-feat-text">{move('risk-it-all').text}</span>
         <button className="s-btn s-press" onClick={() => {
           const r = riskItAll(ch);
-          set(r.character);
+          // Reanimated "Won't Stay Dead" can turn a failure into a success: keep the Hope Die for it.
+          set(r.outcome === 'dead' && ch.transformation === 'reanimated' ? { ...r.character, uses: { ...r.character.uses, 'death:riskHope': r.hope } } : r.character);
           showDice('Risk It All', [r.hope, r.fear], ['Hope', 'Fear'], [
             r.outcome === 'all' ? 'Matching dice: you stay up and clear all Hit Points and Stress.'
               : r.outcome === 'dead' ? 'The Fear Die is higher: you cross through the veil of death.'
@@ -481,5 +531,20 @@ function BeastformCard({ ch, name, text, tag, via }: { ch: Character; name: stri
           onClick={() => go({ name: 'beastform', id: ch.id, via: 'evolution' })}>Use · 3 Hope</button>
       )}
     </article>
+  );
+}
+
+/** Shapeshifter "Change Shape": during a rest, swap your ancestry for another. */
+function ShapeshiftAncestry({ ch }: { ch: Character }) {
+  const current = 'id' in ch.ancestry ? ch.ancestry.id : '';
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <span className="s-label" style={{ fontSize: 12 }}>Change Shape (downtime move)</span>
+      <select className="s-field" style={{ width: 'auto', minHeight: 40 }} value={current}
+        onChange={(e) => updateCharacter(ch.id, (c) => ({ ...c, ancestry: { id: e.target.value }, picks: { ...c.picks, shapeshifter: undefined } }))}>
+        {!current && <option value="">Mixed ancestry</option>}
+        {ancestries.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+      </select>
+    </label>
   );
 }

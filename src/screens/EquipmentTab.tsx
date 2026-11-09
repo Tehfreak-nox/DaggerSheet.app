@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { go } from '../app/nav';
-import { toast } from '../app/toast';
-import { dice, usePlay } from '../app/play';
+import { usePlay, useItem } from '../app/play';
 import { beastAttack, beastDamage, weaponAttack, weaponDamage } from '../app/attack';
 import { updateCharacter } from '../app/store';
 import { armorById, lootById, rules, weaponById } from '../data';
 import {
+  ACTIVE, ITEM_USE, activeCtx, setActive,
   activeForm, addGold, attackProfile, DENOMS, derive, equipWeapon, removeGold, ROW_SLOTS, store, take, versatileStats,
   type AttackProfile, type Character, type Denom,
 } from '../rules';
@@ -281,42 +281,29 @@ function Items({ ch }: { ch: Character }) {
     items.splice(to, 0, it);
     return { ...c, items };
   });
-  const use = (i: number) => {
-    const it = ch.items[i];
-    const loot = lootById.get(it.id);
-    if (!loot) return;
-    const m = /\b(?:clear|gain) (\d+)d(\d+)(?:\+(\d+))? (HP|Hit Points?|Stress|Hope|Armor Slots?)/i.exec(loot.text);
-    const dm = /(\d+)d(\d+)(?:\+(\d+))?/.exec(loot.text);
-    let effect = '';
-    if (m) {
-      const total = dice(loot.name, Number(m[1]), Number(m[2]), Number(m[3] ?? 0));
-      const what = m[4].toLowerCase();
-      updateCharacter(ch.id, (c) => {
-        if (what.startsWith('h') && what !== 'hope') return { ...c, hp: Math.max(0, c.hp - total) };
-        if (what === 'stress') return { ...c, stress: Math.max(0, c.stress - total) };
-        if (what === 'hope') return { ...c, hope: Math.min(derive(c).hopeSlots, c.hope + total) };
-        return { ...c, armorMarked: Math.max(0, c.armorMarked - total) };
-      });
-      effect = 'applied';
-    } else if (dm) {
-      dice(loot.name, Number(dm[1]), Number(dm[2]), Number(dm[3] ?? 0));
-    }
-    void effect;
-    updateCharacter(ch.id, (c) => ({
-      ...c,
-      items: c.items.flatMap((x, j) => (j === i ? (x.qty > 1 ? [{ ...x, qty: x.qty - 1 }] : []) : [x])),
-    }));
-    if (!m && !dm) toast(`Used ${loot.name}.`);
-  };
+  // Lasting effects from items (potions, salves): shown here until they end.
+  const itemEffects = (ch.active ?? []).filter((k) => k.startsWith('item:') && ACTIVE[k]);
 
   return (
     <section className="stack-4">
       <Title style={{ marginBottom: 10 }}>Items</Title>
       {ch.items.length === 0 && <span className="s-muted">No items. Add loot or consumables below.</span>}
+      {itemEffects.map((k) => {
+        const def = ACTIVE[k];
+        const note = typeof def.note === 'function' ? def.note(activeCtx(ch, k, derive(ch).traits)) : def.note;
+        return (
+          <div key={k} className="beast-on">
+            <span style={{ flex: 1, fontSize: 14 }}><b>{lootById.get(k.slice(5))?.name ?? 'Item'}.</b> {note}</span>
+            <button className="s-mini" onClick={() => updateCharacter(ch.id, (c) => setActive(c, k, false))}>End</button>
+          </div>
+        );
+      })}
       {ch.items.map((it, i) => {
         const loot = lootById.get(it.id);
         const name = loot?.name ?? it.name ?? it.id;
         const consumable = loot?.kind === 'consumable';
+        const plan = loot ? ITEM_USE[loot.id] : undefined;
+        const choices = plan && 'choose' in plan ? plan.choose : null;
         return (
           <div key={`${it.id}-${i}`} className={`item-row ${drag === i ? 'dragging' : ''}`}
             onPointerEnter={() => { if (drag !== null && drag !== i) { move(drag, i); setDrag(i); } }}>
@@ -329,11 +316,17 @@ function Items({ ch }: { ch: Character }) {
             <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span className="s-feat-name" style={{ fontSize: 19 }}>{name}</span>
               {loot && <span className="s-muted" style={{ fontSize: 15 }}>{loot.text}</span>}
+              {loot && !consumable && <EquipmentControls ch={ch} item={`item-${loot.id}`} feature={{ name, text: loot.text }} />}
+              {consumable && choices && (
+                <span className="ctl-row">
+                  {choices.map((c) => <button key={c.label} className="s-mini solid" onClick={() => useItem(ch.id, i, c.use)}>{c.label}</button>)}
+                </span>
+              )}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
               {it.qty > 1 && <span className="s-num s-muted" style={{ fontSize: 16 }}>×{it.qty}</span>}
-              {consumable ? (
-                <button className="s-btn solid s-press" style={{ minHeight: 44, padding: '0 14px' }} onClick={() => use(i)}>Use</button>
+              {consumable && !choices ? (
+                <button className="s-btn solid s-press" style={{ minHeight: 44, padding: '0 14px' }} onClick={() => useItem(ch.id, i)}>Use</button>
               ) : (
                 <button className="s-mini" aria-label={`Remove ${name}`} onClick={() => updateCharacter(ch.id, (c) => ({ ...c, items: c.items.filter((_, j) => j !== i) }))}>
                   <Icon d={ICONS.close} size={16} />
