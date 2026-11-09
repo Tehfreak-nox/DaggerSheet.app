@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import lv1cards from '../../design/lv1cards.json';
 import {
-  DOMAINS, ancestries, armor, armorById, cardById, classById, classes, communities,
+  DOMAINS, ancestries, armor, armorById, cardById, classById, classes, communities, transformationById, transformations,
   domainCards, guides, loot, mixedAncestry, rules, weaponById, weapons,
 } from './index';
 import type { Feature, TraitId } from './types';
@@ -181,6 +181,15 @@ describe('heritage', () => {
     expect(ancestries.find((a) => a.id === 'elf')!.features.map((f) => f.name))
       .toEqual(['Quick Reactions', 'Celestial Trance']);
     expect(mixedAncestry.text).toContain('You must choose the first feature from one ancestry and the second from another.');
+  });
+
+  it('has the six transformations, two features and six questions each', () => {
+    expect(transformations.map((t) => t.name)).toEqual(['Demigod', 'Ghost', 'Reanimated', 'Shapeshifter', 'Vampire', 'Werewolf']);
+    for (const t of transformations) {
+      expect(t.features.map((f) => f.name).every(Boolean), t.name).toBe(true);
+      expect(t.questions, t.name).toHaveLength(6);
+    }
+    expect(transformationById.get('vampire')!.features[1].text).toMatch(/You can hold up to 6 tokens at a time/);
   });
 
   it('has 15 communities with six adjectives and one feature', () => {

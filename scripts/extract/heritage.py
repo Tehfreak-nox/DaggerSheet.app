@@ -61,3 +61,30 @@ def communities(lines: list[Line]) -> list[dict]:
         out.append({'id': slug(head), 'name': title(head), 'description': plain(join(desc)),
                     'adjectives': adjectives, 'feature': feats[0]})
     return out
+
+
+TRANSFORMATION_NAMES = ['DEMIGOD', 'GHOST', 'REANIMATED', 'SHAPESHIFTER', 'VAMPIRE', 'WEREWOLF']
+
+
+def transformations(lines: list[Line]) -> dict:
+    """Transformations (pp. 42–45): the rules text and the six transformation cards."""
+    sec = [l for l in lines if 42 <= l.page <= 45 and not l.text.startswith('**Daggerheart SRD**') and not re.match(r'^\d+ \*\*Daggerheart SRD\*\*$', l.text)]
+    start = next(i for i, l in enumerate(sec) if l.style == 'H17' and l.text == 'TRANSFORMATIONS')
+    sec = sec[start + 1:]
+    stop = next((i for i, l in enumerate(sec) if l.style == 'H28' or l.style == 'H17'), len(sec))
+    sec = sec[:stop]
+    rules_text, cards = [], []
+    for head, body in _chunks([Line(sec[0].page, sec[0].col, 0, 0, 'H12', 'RULES')] + sec):
+        if head in ('RULES', 'GRANTING TRANSFORMATIONS'):
+            rules_text.append(join(body))
+            continue
+        assert head in TRANSFORMATION_NAMES, head
+        fi = next(i for i, l in enumerate(body) if l.style == 'B11' and l.text == 'TRANSFORMATION FEATURES')
+        qi = next(i for i, l in enumerate(body) if l.style == 'B11' and l.text == 'TRANSFORMATION QUESTIONS')
+        feats = split_features(body[fi + 1:qi])
+        assert len(feats) == 2 and all(f['name'] for f in feats), (head, feats)
+        questions = [plain(q) for q in re.split(r'\n?• ', join(body[qi + 1:])) if q.strip()]
+        assert len(questions) == 6, (head, questions)
+        cards.append({'id': slug(head), 'name': title(head), 'description': plain(join(body[:fi])), 'features': feats, 'questions': questions})
+    assert [c['name'] for c in cards] == ['Demigod', 'Ghost', 'Reanimated', 'Shapeshifter', 'Vampire', 'Werewolf'], cards
+    return {'rules': '\n\n'.join(plain(t) for t in rules_text), 'cards': cards}

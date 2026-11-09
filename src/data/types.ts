@@ -120,6 +120,15 @@ export interface Ancestry {
   group?: 'Elemental Kin';
 }
 
+/** A transformation card (SRD "Transformations"): two features and six questions. */
+export interface Transformation {
+  id: string;
+  name: string;
+  description: string;
+  features: [Feature, Feature];
+  questions: string[];
+}
+
 export interface Community {
   id: string;
   name: string;

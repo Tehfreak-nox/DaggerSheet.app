@@ -66,6 +66,7 @@ def main() -> None:
     write('ancestries.json', anc)
     write('mixedAncestry.json', mixed)
     write('communities.json', heritage.communities(lines))
+    write('transformations.json', heritage.transformations(lines))
     weapons, armor, loot = equipment.parse(SRC, DEBUG)
     write('weapons.json', weapons)
     write('armor.json', armor)
