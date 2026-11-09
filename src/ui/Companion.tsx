@@ -106,11 +106,17 @@ function CompanionSheet({ ch, onEdit }: { ch: Character; onEdit: () => void }) {
         const key = `companion-exp:${i}`;
         const on = armed.arms.some((x) => x.key === key);
         return (
-          <button key={i} className={`s-row s-press exp ${on ? 's-armed' : ''}`} aria-pressed={on} disabled={!on && ch.hope < 1 && !!e.name}
-            onClick={() => (e.name ? toggleArm(ch.id, { key, label: `${e.name} +${e.value} · 1 Hope`, effect: { roll: e.value }, cost: { hope: 1 } }) : onEdit())}>
+          <button key={i} className={`s-row s-press exp ${on ? 's-armed' : ''}`} aria-pressed={on} disabled={!on && ch.hope < 1 && !!e.name && !armed.arms.some((x) => x.key.startsWith('companion-exp:'))}
+            onClick={() => {
+              if (!e.name) { onEdit(); return; }
+              // One Companion Experience at a time: switching moves the Hope (refund the old, pay the new).
+              const other = armed.arms.find((x) => x.key.startsWith('companion-exp:') && x.key !== key);
+              if (other) toggleArm(ch.id, { key: other.key, label: other.label, effect: { roll: 0 }, cost: other.cost });
+              toggleArm(ch.id, { key, label: `${e.name} +${e.value} · 1 Hope`, effect: { roll: e.value }, cost: { hope: 1 } });
+            }}>
             <span>{e.name || 'New Companion Experience · tap to name it'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className="s-muted" style={{ fontSize: 13 }}>{on ? 'Armed · tap to refund' : ch.hope < 1 && e.name ? 'No Hope' : ''}</span>
+              <span className="s-muted" style={{ fontSize: 13 }}>{on ? 'Armed · tap to refund' : armed.arms.some((x) => x.key.startsWith('companion-exp:')) ? 'Tap to switch' : ch.hope < 1 && e.name ? 'No Hope' : ''}</span>
               <span className="s-num" style={{ fontSize: 22 }}>+{e.value}</span>
             </span>
           </button>
