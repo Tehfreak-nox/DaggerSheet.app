@@ -64,6 +64,8 @@ const CUSTOM: Record<string, Make> = {
   'sub:elemental-incarnation': () => [],
   'sub:elemental-dominion': () => [],
   // ---- Ranger
+  // Ranger's Focus: spend the Hope here; the attack is your weapon's own Hit button.
+  'class:rangers-focus': () => [{ kind: 'hope', n: 1, label: 'Spend 1 Hope' }],
   // ---- Rogue
   'sub:adrenaline': () => [],
   'sub:contacts-everywhere': (ch) => {

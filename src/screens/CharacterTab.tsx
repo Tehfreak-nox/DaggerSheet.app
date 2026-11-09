@@ -217,7 +217,7 @@ function FeaturesPanel({ ch }: { ch: Character }) {
             )}
             {tab === 'subclass' && (
               <>
-                {hasCompanion(ch) && <CompanionPanel ch={ch} />}
+                {hasCompanion(ch) && <><CompanionPanel ch={ch} /><hr className="sep" /></>}
                 <span className="s-label panel-head">{sub.name}{sub.spellcastTrait ? ` · Spellcast: ${cap(sub.spellcastTrait)}` : ''}</span>
                 {STAGES.filter((_, si) => si <= stageIdx).flatMap((stage) => sub[stage].map((f) => (
                   <FeatureCard key={stage + f.id} ch={ch} featureKey={`sub:${f.id}`} name={f.name} text={f.text} tag={cap(stage)} />

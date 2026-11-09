@@ -4,7 +4,7 @@ import { updateCharacter } from '../app/store';
 import { toast } from '../app/toast';
 import { classById } from '../data';
 import { COMPANION_DICE, COMPANION_RANGES, TRAINING_MAX, companionPicks, companionStats, derive, EXAMPLE_EXPERIENCES, newCompanion, type Character, type Companion, type CompanionPick } from '../rules';
-import { cap, Rich, Track } from './kit';
+import { cap, Icon, ICONS, Rich, signed, Track } from './kit';
 
 /** The Beastbound companion: Create companion first, then its sheet at the top of the Subclass tab. */
 export function CompanionPanel({ ch }: { ch: Character }) {
@@ -86,7 +86,7 @@ function CompanionSheet({ ch, onEdit }: { ch: Character; onEdit: () => void }) {
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="s-label" style={{ fontSize: 13 }}>Evasion <span className="s-num" style={{ fontSize: 22 }}>{st.evasion}</span></span>
-          <button className="s-mini" aria-label="Edit companion" onClick={onEdit}>Edit</button>
+          <button className="s-icon s-press" aria-label="Edit companion" onClick={onEdit}><Icon d={ICONS.cog} size={22} /></button>
         </span>
       </div>
       <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -94,23 +94,23 @@ function CompanionSheet({ ch, onEdit }: { ch: Character; onEdit: () => void }) {
         <Track label={`${c.name} Stress`} value={c.stress} max={st.stressSlots} total={st.stressSlots} size={26} onChange={(v) => set((x) => ({ ...x, stress: v }))} />
       </span>
       {out && <span className="s-muted" style={{ fontSize: 13 }}>{c.name} is out of the scene until your next long rest.</span>}
-      <span className="ctl-row">
-        <button className="s-mini solid" disabled={!spell || out}
+      <span style={{ display: 'flex', gap: 8 }}>
+        <button className="s-mini solid" style={{ flex: 1 }} disabled={!spell || out}
           onClick={() => actionRoll(ch.id, `${c.name} · ${attack}`, [{ label: `Spellcast · ${cap(spell)}`, value: d.traits[spell] }, ...(d.spellcastBonus ? [{ label: 'Spellcast bonus', value: d.spellcastBonus }] : [])],
             'Spellcast Roll to command', { trait: spell, attack: true, damageFn: (o) => rollDamage(!!o.critical) })}>
-          Hit · Spellcast {spell ? cap(spell) : ''}
+          Spellcast {spell ? signed(d.traits[spell] + d.spellcastBonus) : ''}
         </button>
-        <button className="s-mini" disabled={out} onClick={() => rollDamage()}>Damage {dmgText}</button>
+        <button className="s-mini" style={{ flex: 1 }} disabled={out} onClick={() => rollDamage()}>{attack} {d.proficiency}d{st.damageDie}</button>
       </span>
       {st.experiences.map((e, i) => {
         const key = `companion-exp:${i}`;
         const on = armed.arms.some((x) => x.key === key);
         return (
-          <button key={i} className={`s-row s-press exp ${on ? 's-armed' : ''}`} aria-pressed={on} disabled={!on && ch.hope < 1}
+          <button key={i} className={`s-row s-press exp ${on ? 's-armed' : ''}`} aria-pressed={on} disabled={!on && ch.hope < 1 && !!e.name}
             onClick={() => (e.name ? toggleArm(ch.id, { key, label: `${e.name} +${e.value} · 1 Hope`, effect: { roll: e.value }, cost: { hope: 1 } }) : onEdit())}>
             <span>{e.name || 'New Companion Experience · tap to name it'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className="s-muted" style={{ fontSize: 13 }}>{on ? 'Armed · tap to refund' : ''}</span>
+              <span className="s-muted" style={{ fontSize: 13 }}>{on ? 'Armed · tap to refund' : ch.hope < 1 && e.name ? 'No Hope' : ''}</span>
               <span className="s-num" style={{ fontSize: 22 }}>+{e.value}</span>
             </span>
           </button>
